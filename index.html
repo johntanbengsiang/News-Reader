@@ -1198,7 +1198,7 @@ function getSummaryPrompt() {
 async function generateSummary() {
   const btn = document.getElementById('generateSummaryBtn');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Generating…';
+  btn.innerHTML = '<span class="spinner"></span> Generating & Saving...';
 
   const unread = articles.filter(a => !readSet.has(a.id)).slice(0, 150);
   if (!unread.length) {
@@ -1214,34 +1214,35 @@ async function generateSummary() {
 
   const userMessage = `Here are ${unread.length} unread headlines from my RSS feeds (newest first). Please analyse and summarise:\n\n${headlineBlock}`;
 
-    try {
-    // Call our own Python backend instead of Anthropic directly
-    const res = await fetch('/api/summary', {
+  try {
+    const payload = {
+      action: 'generateSummary',
+      headlines: userMessage,
+      prompt: getSummaryPrompt()
+    };
+
+    const res = await fetch(GAS_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ headlines: userMessage })
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
     });
     
     const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'Failed to generate summary');
+    if (!data.success) throw new Error(data.error || 'Failed to generate');
 
-    const rawText = data.content;
-    const htmlOut = markdownToHtml(rawText);
-    const meta    = `Generated ${new Date().toLocaleTimeString()} · ${unread.length} articles analysed`;
-    
-    renderSummary(htmlOut, meta);
-    localStorage.setItem(STORAGE.SUMMARY, JSON.stringify({ html: htmlOut, meta }));
-    toast('Summary generated');
+    const htmlOut = markdownToHtml(data.summary.rawText);
+    renderSummary(htmlOut, data.summary.meta);
+    toast('Summary generated and saved to Drive');
   } catch(err) {
     document.getElementById('summaryBody').innerHTML =
       `<div class="summary-placeholder"><div class="icon">⚠</div><p style="color:var(--accent)">${esc(err.message)}</p></div>`;
     toast('Error: ' + err.message);
   }
 
-
   btn.disabled = false;
   btn.textContent = 'Generate summary';
 }
+
 
 function renderSummary(html, meta) {
   document.getElementById('summaryBody').innerHTML = html;
