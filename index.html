@@ -1122,23 +1122,21 @@ async function generateSummary() {
 
   const userMessage = `Here are ${unread.length} unread headlines from my RSS feeds (newest first). Please analyse and summarise:\n\n${headlineBlock}`;
 
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    try {
+    // Call our own Python backend instead of Anthropic directly
+    const res = await fetch('/api/summary', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
-        system: getSummaryPrompt(),
-        messages: [{ role: 'user', content: userMessage }],
-      })
+      body: JSON.stringify({ headlines: userMessage })
     });
+    
     const data = await res.json();
-    if (data.error) throw new Error(data.error.message);
+    if (!res.ok) throw new Error(data.detail || 'Failed to generate summary');
 
-    const rawText = data.content.map(b => b.text || '').join('');
+    const rawText = data.content;
     const htmlOut = markdownToHtml(rawText);
     const meta    = `Generated ${new Date().toLocaleTimeString()} · ${unread.length} articles analysed`;
+    
     renderSummary(htmlOut, meta);
     localStorage.setItem(STORAGE.SUMMARY, JSON.stringify({ html: htmlOut, meta }));
     toast('Summary generated');
@@ -1147,6 +1145,7 @@ async function generateSummary() {
       `<div class="summary-placeholder"><div class="icon">⚠</div><p style="color:var(--accent)">${esc(err.message)}</p></div>`;
     toast('Error: ' + err.message);
   }
+
 
   btn.disabled = false;
   btn.textContent = 'Generate summary';
