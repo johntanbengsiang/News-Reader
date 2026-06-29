@@ -493,6 +493,45 @@
   }
   .toast.show { opacity: 1; transform: translateY(0); }
 
+  /* ── ARTICLE SUMMARIZE BUTTON ─────────────────────────────────── */
+  .article-row { position: relative; }
+  .article-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .summarize-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.4px;
+    padding: 3px 8px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--paper);
+    color: var(--ink-3);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .summarize-btn:hover { background: var(--cluster); color: var(--cluster-b); border-color: var(--cluster-b); }
+  .summarize-btn:disabled { opacity: 0.6; cursor: default; }
+  .summarize-btn .spinner { width: 9px; height: 9px; border-width: 1.5px; margin-right: 3px; }
+
+  .article-summary-panel {
+    grid-column: 1 / -1;
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: var(--cluster);
+    border-left: 2px solid var(--cluster-b);
+    border-radius: var(--radius);
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--ink-2);
+    display: none;
+  }
+  .article-summary-panel.open { display: block; }
+  .article-summary-panel.error { background: #fbe9e7; border-left-color: var(--accent); color: var(--accent-2); }
+
   /* ── RESPONSIVE ─────────────────────────────────────────────── */
   @media (max-width: 600px) {
     .masthead { padding: 10px 14px; }
@@ -534,8 +573,10 @@
       <option value="read">Read</option>
     </select>
     <button class="toolbar-btn" id="refreshBtn">↻ Refresh</button>
+    <button class="toolbar-btn" id="forceFetchBtn" title="Fetch all feeds right now (slower)">⚡ Fetch now</button>
     <button class="toolbar-btn" id="markAllReadBtn">Mark all read</button>
     <button class="toolbar-btn" id="openSettingsBtn">⚙ Feeds</button>
+    <span class="article-count" id="lastFetchInfo" style="margin-left:auto;"></span>
     <span class="article-count" id="articleCount"></span>
   </div>
   <div class="article-list" id="articleList">
@@ -632,18 +673,18 @@
 <script>
 /* ================================================================
    DISPATCH — Personal RSS Reader
-   Storage: localStorage
-   RSS fetching: allorigins.win CORS proxy
-   AI Summary: Anthropic API (claude-sonnet-4-6)
-   Background polling: setInterval
+   Data source: Google Apps Script (GAS_URL)
+     - GAS fetches all RSS feeds server-side on a time-driven trigger
+       and caches parsed articles + feed list + summary in a Drive JSON file.
+     - The frontend just pulls that pre-fetched JSON. No client-side
+       RSS fetching, no CORS proxy, no per-load delay.
+   Local storage: read status + UI prefs only (article cache lives on the backend)
+   AI Summary (page-level + per-article): Gemini, called from Apps Script
 ================================================================ */
 
 // ── CONSTANTS ────────────────────────────────────────────────────
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbzPpBzz2-kZ9hIIVLjbpijY9faBRjWDtUxeKAt-F_WSAl7H-MedobJbQQ0Pdb-vV25u/exec'; // <--- ADD THIS
-const CORS_PROXY = 'https://api.allorigins.win/get?url=';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzPpBzz2-kZ9hIIVLjbpijY9faBRjWDtUxeKAt-F_WSAl7H-MedobJbQQ0Pdb-vV25u/exec'; // <--- REPLACE with your deployed Apps Script web app URL
 const STORAGE = {
-  FEEDS:     'dispatch_feeds',
-  ARTICLES:  'dispatch_articles',
   READ:      'dispatch_read',
   INTERVAL:  'dispatch_interval',
   THRESHOLD: 'dispatch_threshold',
@@ -661,89 +702,54 @@ Given a list of news headlines and their sources, write a structured summary cov
 Be analytical, not just descriptive. Cite sources inline where relevant. Keep to ~400 words. Use plain Markdown formatting with **bold** for emphasis.`;
 
 // ── STATE ────────────────────────────────────────────────────────
-let feeds       = [];
-let articles    = [];   // {id, feedName, feedUrl, title, link, description, pubDate, timestamp}
-let readSet     = new Set();
-let pollTimer   = null;
-let isFetching  = false;
+let feeds         = [];
+let articles       = [];   // {id, feedId, feedName, title, link, description, pubDate, timestamp}
+let readSet        = new Set();
+let lastFetch       = null;
+let pollTimer       = null;
+let isFetching      = false;
+const articleSummaries = {}; // id -> { text, loading, error }
 
 // ── INIT ─────────────────────────────────────────────────────────
 async function init() {
-  await loadState(); // Wait for Drive data to load
+  loadLocalPrefs();
   renderMastheadDate();
+  attachEventListeners();
+  updateIntervalDisplay();
+  await loadFromBackend();
   renderFeedFilter();
   renderFeedList();
   renderArticles();
-  updateIntervalDisplay();
   startPolling();
+}
 
-// Update the boot event listener at the very bottom of the file:
-document.addEventListener('DOMContentLoaded', async () => await init());
-
-async function loadState() {
-  // 1. Pull Feeds and Summary from Google Drive via GAS
+// ── LOAD FROM BACKEND (Apps Script) ───────────────────────────────
+async function loadFromBackend() {
+  setStatus('fetching');
   try {
     const res = await fetch(GAS_URL);
     const data = await res.json();
-    feeds = data.feeds || [];
-    
-    // Load pre-saved summary automatically!
+
+    feeds      = data.feeds || [];
+    articles   = data.articles || [];
+    lastFetch  = data.lastFetch || null;
+
     if (data.summary && data.summary.rawText) {
       const htmlOut = markdownToHtml(data.summary.rawText);
       renderSummary(htmlOut, data.summary.meta);
     }
-  } catch(e) {
-    console.error("Failed to fetch from Drive:", e);
-    feeds = []; 
+    setStatus('live');
+  } catch (e) {
+    console.error('Failed to load from backend:', e);
+    toast('Failed to load data from server');
+    setStatus('idle');
   }
-
-  async function syncFeedsToDrive() {
-  try {
-    await fetch(GAS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // text/plain prevents CORS preflight blocks
-      body: JSON.stringify({ action: 'updateFeeds', feeds: feeds })
-    });
-  } catch (err) {
-    console.error("Failed to sync feeds:", err);
-    toast("Failed to sync feeds to Drive");
-  }
+  renderLastFetchInfo();
 }
 
-  async function addFeed() {
-    const url  = document.getElementById('feedUrlInput').value.trim();
-    const name = document.getElementById('feedNameInput').value.trim() || extractName(url);
-    if (!url) return toast('Enter a feed URL');
-    if (!url.startsWith('http')) return toast('URL must start with http');
-    if (feeds.find(f => f.url === url)) return toast('Feed already added');
-
-    feeds.push({ url, name, id: Date.now().toString() });
-  
-    document.getElementById('feedUrlInput').value = '';
-    document.getElementById('feedNameInput').value = '';
-    renderFeedList();
-    renderFeedFilter();
-    fetchFeed(feeds[feeds.length - 1]);
-    toast(`Added: ${name}. Syncing...`);
-  
-   await syncFeedsToDrive(); // Push to drive
-    }
-
-  async function removeFeed(id) {
-    feeds = feeds.filter(f => f.id !== id);
-    articles = articles.filter(a => a.feedId !== id);
-    saveArticles();
-    renderFeedList();
-    renderFeedFilter();
-    renderArticles();
-    toast('Feed removed. Syncing...');
-  
-  await syncFeedsToDrive(); // Push to drive
-}
-  
-  // 2. Keep local storage strictly for article cache and read status
-  try { articles = JSON.parse(localStorage.getItem(STORAGE.ARTICLES)) || []; } catch(e){ articles=[]; }
-  try { readSet  = new Set(JSON.parse(localStorage.getItem(STORAGE.READ)) || []); } catch(e){ readSet=new Set(); }
+// ── LOCAL PREFS (read status, UI settings only) ───────────────────
+function loadLocalPrefs() {
+  try { readSet = new Set(JSON.parse(localStorage.getItem(STORAGE.READ)) || []); } catch (e) { readSet = new Set(); }
 
   const iv = localStorage.getItem(STORAGE.INTERVAL) || '15';
   document.getElementById('refreshInterval').value = iv;
@@ -751,7 +757,22 @@ async function loadState() {
   const thr = localStorage.getItem(STORAGE.THRESHOLD) || '0.45';
   document.getElementById('similarityThreshold').value = thr;
   document.getElementById('thresholdDisplay').textContent = thr;
+
+  const cached = localStorage.getItem(STORAGE.SUMMARY);
+  if (cached) {
+    try {
+      const s = JSON.parse(cached);
+      renderSummary(s.html, s.meta);
+    } catch (e) {}
+  }
 }
+
+function saveRead() {
+  localStorage.setItem(STORAGE.READ, JSON.stringify([...readSet]));
+}
+
+// ── EVENT LISTENERS ────────────────────────────────────────────────
+function attachEventListeners() {
   // tab switch
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -763,7 +784,8 @@ async function loadState() {
   });
 
   // toolbar
-  document.getElementById('refreshBtn').addEventListener('click', () => fetchAll());
+  document.getElementById('refreshBtn').addEventListener('click', () => loadFromBackend().then(renderArticles));
+  document.getElementById('forceFetchBtn').addEventListener('click', forceFetchNow);
   document.getElementById('markAllReadBtn').addEventListener('click', markAllRead);
   document.getElementById('openSettingsBtn').addEventListener('click', () => openModal('settingsModal'));
   document.getElementById('feedFilter').addEventListener('change', renderArticles);
@@ -805,58 +827,25 @@ async function loadState() {
   document.getElementById('generateSummaryBtn').addEventListener('click', generateSummary);
 
   // close modals on overlay click
-  ['settingsModal','promptModal'].forEach(id => {
+  ['settingsModal', 'promptModal'].forEach(id => {
     document.getElementById(id).addEventListener('click', e => {
       if (e.target.id === id) closeModal(id);
     });
   });
 }
 
-// ── STATE PERSISTENCE ─────────────────────────────────────────────
-function loadState() {
-  try { feeds    = JSON.parse(localStorage.getItem(STORAGE.FEEDS))    || []; } catch(e){ feeds=[]; }
-  try { articles = JSON.parse(localStorage.getItem(STORAGE.ARTICLES)) || []; } catch(e){ articles=[]; }
-  try { readSet  = new Set(JSON.parse(localStorage.getItem(STORAGE.READ)) || []); } catch(e){ readSet=new Set(); }
-
-  const iv = localStorage.getItem(STORAGE.INTERVAL) || '15';
-  document.getElementById('refreshInterval').value = iv;
-
-  const thr = localStorage.getItem(STORAGE.THRESHOLD) || '0.45';
-  document.getElementById('similarityThreshold').value = thr;
-  document.getElementById('thresholdDisplay').textContent = thr;
-
-  // restore cached summary
-  const cached = localStorage.getItem(STORAGE.SUMMARY);
-  if (cached) {
-    try {
-      const s = JSON.parse(cached);
-      renderSummary(s.html, s.meta);
-    } catch(e){}
-  }
-}
-
-function saveArticles() {
-  // Keep at most 2000 articles, newest first
-  const sorted = [...articles].sort((a,b) => b.timestamp - a.timestamp).slice(0, 2000);
-  articles = sorted;
-  localStorage.setItem(STORAGE.ARTICLES, JSON.stringify(articles));
-}
-
-function saveRead() {
-  localStorage.setItem(STORAGE.READ, JSON.stringify([...readSet]));
-}
-
 // ── DATE ─────────────────────────────────────────────────────────
 function renderMastheadDate() {
   const now = new Date();
   document.getElementById('mastheadDate').textContent =
-    now.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 function relativeTime(ts) {
+  if (!ts) return '';
   const diff = Date.now() - ts;
   const m = Math.floor(diff / 60000);
-  if (m < 1)  return 'just now';
+  if (m < 1) return 'just now';
   if (m < 60) return `${m}m ago`;
   const h = Math.floor(m / 60);
   if (h < 24) return `${h}h ago`;
@@ -864,17 +853,25 @@ function relativeTime(ts) {
   return `${d}d ago`;
 }
 
+function renderLastFetchInfo() {
+  const el = document.getElementById('lastFetchInfo');
+  if (!el) return;
+  el.textContent = lastFetch ? `Server last fetched ${relativeTime(new Date(lastFetch).getTime())}` : '';
+}
+
 // ── FEED MANAGEMENT ───────────────────────────────────────────────
-async function syncFeedsToDrive() {
+async function syncFeedsToBackend() {
   try {
-    await fetch(GAS_URL, {
+    const res = await fetch(GAS_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // text/plain prevents CORS preflight blocks
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // text/plain avoids CORS preflight
       body: JSON.stringify({ action: 'updateFeeds', feeds: feeds })
     });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Unknown error');
   } catch (err) {
-    console.error("Failed to sync feeds:", err);
-    toast("Failed to sync feeds to Drive");
+    console.error('Failed to sync feeds:', err);
+    toast('Failed to sync feeds to server');
   }
 }
 
@@ -886,34 +883,33 @@ async function addFeed() {
   if (feeds.find(f => f.url === url)) return toast('Feed already added');
 
   feeds.push({ url, name, id: Date.now().toString() });
-  
+
   document.getElementById('feedUrlInput').value = '';
   document.getElementById('feedNameInput').value = '';
   renderFeedList();
   renderFeedFilter();
-  fetchFeed(feeds[feeds.length - 1]);
-  toast(`Added: ${name}. Syncing...`);
-  
-  await syncFeedsToDrive(); // Push to drive
+  toast(`Added: ${name}. Fetching on server...`);
+
+  await syncFeedsToBackend(); // also triggers an immediate fetch server-side
+  await loadFromBackend();
+  renderArticles();
 }
 
 async function removeFeed(id) {
   feeds = feeds.filter(f => f.id !== id);
   articles = articles.filter(a => a.feedId !== id);
-  saveArticles();
   renderFeedList();
   renderFeedFilter();
   renderArticles();
   toast('Feed removed. Syncing...');
-  
-  await syncFeedsToDrive(); // Push to drive
-}
 
+  await syncFeedsToBackend();
+}
 
 function extractName(url) {
   try {
     return new URL(url).hostname.replace('www.', '').replace('feeds.', '').split('.')[0];
-  } catch(e) { return 'Feed'; }
+  } catch (e) { return 'Feed'; }
 }
 
 function renderFeedList() {
@@ -944,77 +940,46 @@ function updateIntervalDisplay() {
   document.getElementById('refreshInterval').value = iv;
 }
 
-// ── FETCHING ─────────────────────────────────────────────────────
-async function fetchAll() {
+// ── FETCHING (now just re-pulling cached backend data, or forcing) ──
+async function forceFetchNow() {
   if (isFetching) return;
   if (!feeds.length) { toast('Add feeds first'); return; }
-  setStatus('fetching');
   isFetching = true;
-  let added = 0;
-  for (const feed of feeds) {
-    try { added += await fetchFeed(feed); } catch(e){}
+  setStatus('fetching');
+  const btn = document.getElementById('forceFetchBtn');
+  btn.disabled = true;
+  btn.textContent = 'Fetching…';
+
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'forceFetch' })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Fetch failed');
+    await loadFromBackend();
+    renderArticles();
+    toast(data.added > 0 ? `${data.added} new article${data.added > 1 ? 's' : ''}` : 'No new articles');
+  } catch (e) {
+    console.error(e);
+    toast('Force fetch failed: ' + e.message);
   }
+
   isFetching = false;
   setStatus('live');
-  saveArticles();
-  renderArticles();
-  if (added > 0) toast(`${added} new article${added > 1 ? 's' : ''}`);
-  else toast('No new articles');
+  btn.disabled = false;
+  btn.textContent = '⚡ Fetch now';
 }
 
-async function fetchFeed(feed) {
-  const proxyUrl = CORS_PROXY + encodeURIComponent(feed.url);
-  const res = await fetch(proxyUrl);
-  const json = await res.json();
-  const xmlStr = json.contents;
-  const parser = new DOMParser();
-  const xml = parser.parseFromString(xmlStr, 'text/xml');
-
-  const items = [...xml.querySelectorAll('item, entry')];
-  let added = 0;
-
-  items.forEach(item => {
-    const title       = getText(item, 'title');
-    const link        = getText(item, 'link') || item.querySelector('link')?.getAttribute('href') || '';
-    const description = stripHtml(getText(item, 'description') || getText(item, 'summary') || '');
-    const pubDate     = getText(item, 'pubDate') || getText(item, 'published') || getText(item, 'updated') || '';
-    const timestamp   = pubDate ? new Date(pubDate).getTime() : Date.now();
-    const id          = feed.id + '_' + btoa(encodeURIComponent(link || title)).slice(0, 40);
-
-    if (!title) return;
-    if (articles.find(a => a.id === id)) return;
-
-    articles.push({ id, feedId: feed.id, feedName: feed.name, title, link, description, pubDate, timestamp });
-    added++;
-  });
-
-  return added;
-}
-
-function getText(el, tag) {
-  const node = el.querySelector(tag);
-  return node ? (node.textContent || '').trim() : '';
-}
-
-function stripHtml(html) {
-  const tmp = document.createElement('div');
-  tmp.innerHTML = html;
-  return tmp.textContent?.trim().slice(0, 200) || '';
-}
-
-// ── POLLING ───────────────────────────────────────────────────────
+// ── POLLING (re-pulls the backend's cached JSON, doesn't fetch RSS itself) ──
 function startPolling() {
   if (pollTimer) clearInterval(pollTimer);
   const minutes = parseInt(localStorage.getItem(STORAGE.INTERVAL) || '15');
-  pollTimer = setInterval(fetchAll, minutes * 60 * 1000);
-  // also fetch on load if feeds exist and articles are stale
-  if (feeds.length && (Date.now() - getLatestTs() > 2 * 60 * 1000)) {
-    fetchAll();
-  }
-}
-
-function getLatestTs() {
-  return articles.reduce((m, a) => Math.max(m, a.timestamp), 0);
+  pollTimer = setInterval(async () => {
+    await loadFromBackend();
+    renderArticles();
+  }, minutes * 60 * 1000);
 }
 
 // ── STATUS ────────────────────────────────────────────────────────
@@ -1028,7 +993,7 @@ function setStatus(state) {
 
 // ── SIMILARITY ────────────────────────────────────────────────────
 function tokenize(str) {
-  return str.toLowerCase().replace(/[^\w\s]/g,'').split(/\s+/).filter(w => w.length > 2);
+  return str.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 2);
 }
 
 function jaccard(a, b) {
@@ -1064,16 +1029,17 @@ function clusterArticles(arts) {
 
 // ── RENDER ARTICLES ───────────────────────────────────────────────
 function renderArticles() {
-  const feedId    = document.getElementById('feedFilter').value;
-  const readMode  = document.getElementById('readFilter').value;
+  const feedId   = document.getElementById('feedFilter').value;
+  const readMode = document.getElementById('readFilter').value;
 
   let filtered = [...articles].sort((a, b) => b.timestamp - a.timestamp);
   if (feedId !== 'all') filtered = filtered.filter(a => a.feedId === feedId);
   if (readMode === 'unread') filtered = filtered.filter(a => !readSet.has(a.id));
-  if (readMode === 'read')   filtered = filtered.filter(a =>  readSet.has(a.id));
+  if (readMode === 'read')   filtered = filtered.filter(a => readSet.has(a.id));
 
   const count = document.getElementById('articleCount');
   count.textContent = `${filtered.length} article${filtered.length !== 1 ? 's' : ''}`;
+  renderLastFetchInfo();
 
   const list = document.getElementById('articleList');
   if (!filtered.length && !feeds.length) {
@@ -1102,13 +1068,12 @@ function renderCluster(cluster) {
   if (cluster.length === 1) {
     return renderSingleRow(cluster[0]);
   }
-  // Multiple similar articles
   const primary = cluster[0];
   const allRead = cluster.every(a => readSet.has(a.id));
   const clusterId = 'cluster_' + primary.id;
   return `
     <div class="cluster-row${allRead ? ' read' : ''}">
-      <div class="cluster-header" onclick="toggleCluster('${clusterId}', ${JSON.stringify(cluster.map(a=>a.id)).replace(/"/g,'&quot;')})">
+      <div class="cluster-header" onclick="toggleCluster('${clusterId}', ${JSON.stringify(cluster.map(a => a.id)).replace(/"/g, '&quot;')})">
         <span class="cluster-label">▸ ${cluster.length} sources</span>
         <span class="cluster-title">${esc(primary.title)}</span>
         <span class="cluster-toggle" id="toggle_${clusterId}">expand</span>
@@ -1129,16 +1094,25 @@ function renderCluster(cluster) {
 
 function renderSingleRow(a) {
   const read = readSet.has(a.id);
+  const sum = articleSummaries[a.id];
   return `
-    <div class="article-row${read ? ' read' : ''}" onclick="openArticle(event, '${a.id}', '${esc(a.link)}')">
-      <div>
+    <div class="article-row${read ? ' read' : ''}">
+      <div onclick="openArticle(event, '${a.id}', '${esc(a.link)}')" style="cursor:pointer;">
         <div class="article-title">${esc(a.title)}</div>
         <div class="article-meta">
           <span class="source">${esc(a.feedName)}</span>
-          <span>${esc(a.description?.slice(0,120) || '')}</span>
+          <span>${esc(a.description?.slice(0, 120) || '')}</span>
         </div>
       </div>
-      <div class="article-time">${relativeTime(a.timestamp)}</div>
+      <div class="article-actions">
+        <div class="article-time">${relativeTime(a.timestamp)}</div>
+        <button class="summarize-btn" id="sumbtn_${a.id}" onclick="event.stopPropagation(); summariseArticle('${a.id}')">
+          ${sum && sum.loading ? '<span class="spinner"></span>' : (sum && sum.text ? 'Hide' : '✦ Summarise')}
+        </button>
+      </div>
+      <div class="article-summary-panel${sum && sum.text ? ' open' : ''}${sum && sum.error ? ' error' : ''}" id="sumpanel_${a.id}">
+        ${sum ? (sum.error ? esc(sum.error) : esc(sum.text || '')) : ''}
+      </div>
     </div>`;
 }
 
@@ -1148,7 +1122,6 @@ function toggleCluster(id, articleIds) {
   const isOpen = el.classList.contains('open');
   el.classList.toggle('open', !isOpen);
   toggle.textContent = isOpen ? 'expand' : 'collapse';
-  // mark all as read when expanding
   if (!isOpen) {
     articleIds.forEach(aid => readSet.add(aid));
     saveRead();
@@ -1184,14 +1157,51 @@ function clearRead() {
 }
 
 function clearAll() {
-  if (!confirm('Delete ALL data including feeds and articles?')) return;
+  if (!confirm('Clear local read history and UI preferences? (Feeds and cached articles live on the server and are not affected.)')) return;
   Object.values(STORAGE).forEach(k => localStorage.removeItem(k));
-  feeds = []; articles = []; readSet = new Set();
-  renderFeedList(); renderFeedFilter(); renderArticles();
-  toast('All data cleared');
+  readSet = new Set();
+  renderArticles();
+  toast('Local data cleared');
 }
 
-// ── AI SUMMARY ────────────────────────────────────────────────────
+// ── PER-ARTICLE SUMMARISE ──────────────────────────────────────────
+async function summariseArticle(id) {
+  const existing = articleSummaries[id];
+  // If already have a summary showing, treat the button as a hide toggle
+  if (existing && existing.text && !existing.loading) {
+    delete articleSummaries[id];
+    renderArticles();
+    return;
+  }
+
+  const article = articles.find(a => a.id === id);
+  if (!article) return;
+
+  articleSummaries[id] = { loading: true };
+  renderArticles();
+
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action: 'summariseArticle',
+        title: article.title,
+        description: article.description,
+        link: article.link
+      })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Failed to summarise');
+    articleSummaries[id] = { text: data.summary };
+  } catch (err) {
+    console.error(err);
+    articleSummaries[id] = { error: 'Could not summarise: ' + err.message };
+  }
+  renderArticles();
+}
+
+// ── AI SUMMARY (page-level digest of unread headlines) ─────────────
 function getSummaryPrompt() {
   return localStorage.getItem(STORAGE.PROMPT) || DEFAULT_PROMPT;
 }
@@ -1210,7 +1220,7 @@ async function generateSummary() {
   }
 
   const headlineBlock = unread.map((a, i) =>
-    `${i+1}. [${a.feedName}] ${a.title}${a.description ? ` — ${a.description.slice(0,120)}` : ''}`
+    `${i + 1}. [${a.feedName}] ${a.title}${a.description ? ` — ${a.description.slice(0, 120)}` : ''}`
   ).join('\n');
 
   const userMessage = `Here are ${unread.length} unread headlines from my RSS feeds (newest first). Please analyse and summarise:\n\n${headlineBlock}`;
@@ -1227,14 +1237,14 @@ async function generateSummary() {
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(payload)
     });
-    
+
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Failed to generate');
 
     const htmlOut = markdownToHtml(data.summary.rawText);
     renderSummary(htmlOut, data.summary.meta);
-    toast('Summary generated and saved to Drive');
-  } catch(err) {
+    toast('Summary generated and saved');
+  } catch (err) {
     document.getElementById('summaryBody').innerHTML =
       `<div class="summary-placeholder"><div class="icon">⚠</div><p style="color:var(--accent)">${esc(err.message)}</p></div>`;
     toast('Error: ' + err.message);
@@ -1243,7 +1253,6 @@ async function generateSummary() {
   btn.disabled = false;
   btn.textContent = 'Generate summary';
 }
-
 
 function renderSummary(html, meta) {
   document.getElementById('summaryBody').innerHTML = html;
@@ -1287,7 +1296,7 @@ function toast(msg) {
 // ── UTILS ─────────────────────────────────────────────────────────
 function esc(str) {
   if (!str) return '';
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 // ── BOOT ─────────────────────────────────────────────────────────
@@ -1295,12 +1304,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     await init();
   } catch (err) {
-    console.error("Failed during boot:", err);
+    console.error('Failed during boot:', err);
   }
 });
-
-
-  
 </script>
 </body>
 </html>
