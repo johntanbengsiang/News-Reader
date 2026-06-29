@@ -440,6 +440,33 @@
   .feed-input-row {
     display: flex; gap: 8px; margin-bottom: 14px;
   }
+  .add-feed-mode-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+  .add-mode-tab {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.3px;
+    padding: 5px 10px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--paper);
+    color: var(--ink-3);
+    cursor: pointer;
+  }
+  .add-mode-tab.active {
+    background: var(--cluster);
+    color: var(--cluster-b);
+    border-color: var(--cluster-b);
+  }
+  .publisher-hint {
+    font-size: 11px;
+    color: var(--ink-4);
+    margin: -6px 0 10px;
+    line-height: 1.5;
+  }
   .feed-input {
     flex: 1;
     font-family: var(--mono);
@@ -710,10 +737,32 @@
     </div>
     <div class="modal-body">
       <div class="modal-section-label">Add RSS Feed</div>
-      <div class="feed-input-row">
+      <div class="add-feed-mode-tabs">
+        <button class="add-mode-tab active" data-mode="url" id="addModeUrlTab">Direct URL</button>
+        <button class="add-mode-tab" data-mode="publisher" id="addModePublisherTab">Search publisher</button>
+      </div>
+
+      <div class="feed-input-row" id="urlModeRow">
         <input class="feed-input feed-name-input" id="feedNameInput" type="text" placeholder="Name (e.g. Reuters)">
         <input class="feed-input" id="feedUrlInput" type="url" placeholder="https://feeds.reuters.com/reuters/topNews">
         <button class="toolbar-btn primary" id="addFeedBtn">Add</button>
+      </div>
+
+      <div id="publisherModeRow" style="display:none;">
+        <div class="feed-input-row">
+          <input class="feed-input" id="publisherDomainInput" type="text" placeholder="Domain or publisher name (e.g. edgeprop.sg)" style="flex:2;">
+          <button class="toolbar-btn primary" id="buildPublisherFeedBtn">Preview</button>
+        </div>
+        <div class="publisher-hint">
+          Builds a Google News feed of articles mentioning this domain/publisher, last 24h, SG/English. Editable before adding.
+        </div>
+        <div id="publisherPreview" style="display:none;">
+          <div class="feed-input-row">
+            <input class="feed-input feed-name-input" id="publisherNameInput" type="text" placeholder="Display name">
+            <input class="feed-input" id="publisherUrlPreview" type="text" readonly style="color:var(--ink-3);">
+            <button class="toolbar-btn primary" id="addPublisherFeedBtn">Add</button>
+          </div>
+        </div>
       </div>
 
       <div class="modal-section-label">Active Feeds</div>
@@ -915,6 +964,14 @@ function attachEventListeners() {
   document.getElementById('feedUrlInput').addEventListener('keydown', e => { if (e.key === 'Enter') addFeed(); });
   document.getElementById('clearReadBtn').addEventListener('click', clearRead);
   document.getElementById('clearAllBtn').addEventListener('click', clearAll);
+
+  // add-feed mode toggle (direct URL vs publisher search)
+  document.getElementById('addModeUrlTab').addEventListener('click', () => switchAddFeedMode('url'));
+  document.getElementById('addModePublisherTab').addEventListener('click', () => switchAddFeedMode('publisher'));
+  document.getElementById('buildPublisherFeedBtn').addEventListener('click', buildPublisherFeedPreview);
+  document.getElementById('publisherDomainInput').addEventListener('keydown', e => { if (e.key === 'Enter') buildPublisherFeedPreview(); });
+  document.getElementById('addPublisherFeedBtn').addEventListener('click', addPublisherFeed);
+
   document.getElementById('refreshInterval').addEventListener('change', e => {
     localStorage.setItem(STORAGE.INTERVAL, e.target.value);
     startPolling();
@@ -998,12 +1055,17 @@ async function addFeed() {
   const name = document.getElementById('feedNameInput').value.trim() || extractName(url);
   if (!url) return toast('Enter a feed URL');
   if (!url.startsWith('http')) return toast('URL must start with http');
-  if (feeds.find(f => f.url === url)) return toast('Feed already added');
 
-  feeds.push({ url, name, id: Date.now().toString() });
+  await addFeedToList(url, name);
 
   document.getElementById('feedUrlInput').value = '';
   document.getElementById('feedNameInput').value = '';
+}
+
+async function addFeedToList(url, name) {
+  if (feeds.find(f => f.url === url)) { toast('Feed already added'); return; }
+
+  feeds.push({ url, name, id: Date.now().toString() });
   renderFeedList();
   renderFeedFilter();
   toast(`Added: ${name}. Fetching on server...`);
@@ -1011,6 +1073,53 @@ async function addFeed() {
   await syncFeedsToBackend(); // also triggers an immediate fetch server-side
   await loadFromBackend();
   renderArticles();
+}
+
+// ── ADD FEED: PUBLISHER SEARCH MODE (via Google News RSS) ───────────
+function switchAddFeedMode(mode) {
+  const isUrl = mode === 'url';
+  document.getElementById('addModeUrlTab').classList.toggle('active', isUrl);
+  document.getElementById('addModePublisherTab').classList.toggle('active', !isUrl);
+  document.getElementById('urlModeRow').style.display = isUrl ? 'flex' : 'none';
+  document.getElementById('publisherModeRow').style.display = isUrl ? 'none' : 'block';
+}
+
+function buildGoogleNewsFeedUrl(domainOrTerm) {
+  const cleaned = domainOrTerm.trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
+  // If it looks like a domain (has a dot, no spaces), use allinurl: to match
+  // articles whose URL contains that domain. Otherwise treat it as a plain
+  // keyword/publisher-name search.
+  const looksLikeDomain = /^[\w.-]+\.[a-z]{2,}$/i.test(cleaned) && !cleaned.includes(' ');
+  const q = looksLikeDomain ? `allinurl:${cleaned}` : encodeURIComponent(cleaned);
+  // Built manually (not via URLSearchParams) to match Google News' expected
+  // format exactly: '+' as a literal AND operator and ':' left unescaped in
+  // operators like allinurl: / when: — encoding these breaks the query.
+  return `https://news.google.com/rss/search?q=when:24h+${q}&ceid=SG:en&hl=en&gl=SG`;
+}
+
+function buildPublisherFeedPreview() {
+  const input = document.getElementById('publisherDomainInput').value.trim();
+  if (!input) return toast('Enter a domain or publisher name');
+
+  const url = buildGoogleNewsFeedUrl(input);
+  const displayName = extractName(input.includes('.') ? `https://${input.replace(/^https?:\/\//, '')}` : input) || input;
+
+  document.getElementById('publisherUrlPreview').value = url;
+  document.getElementById('publisherNameInput').value = displayName;
+  document.getElementById('publisherPreview').style.display = 'block';
+}
+
+async function addPublisherFeed() {
+  const url  = document.getElementById('publisherUrlPreview').value.trim();
+  const name = document.getElementById('publisherNameInput').value.trim() || 'Google News search';
+  if (!url) return toast('Build a preview first');
+
+  await addFeedToList(url, name);
+
+  document.getElementById('publisherDomainInput').value = '';
+  document.getElementById('publisherNameInput').value = '';
+  document.getElementById('publisherUrlPreview').value = '';
+  document.getElementById('publisherPreview').style.display = 'none';
 }
 
 async function removeFeed(id) {
