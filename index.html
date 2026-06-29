@@ -1290,7 +1290,13 @@ function esc(str) {
 }
 
 // ── BOOT ─────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    await init();
+  } catch (err) {
+    console.error("Failed during boot:", err);
+  }
+});
 
 // ── CONSTANTS ────────────────────────────────────────────────────
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzPpBzz2-kZ9hIIVLjbpijY9faBRjWDtUxeKAt-F_WSAl7H-MedobJbQQ0Pdb-vV25u/exec'; // <--- ADD THIS
