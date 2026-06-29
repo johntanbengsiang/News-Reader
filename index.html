@@ -683,7 +683,7 @@
 ================================================================ */
 
 // ── CONSTANTS ────────────────────────────────────────────────────
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwVNyv-Wq6yPTTb4cR50qbqve_Da-wlCCXkQjJwNLhaoHiZN9JJvmQAw0URKb1VXyL5/exec'; // <--- REPLACE with your deployed Apps Script web app URL
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzPpBzz2-kZ9hIIVLjbpijY9faBRjWDtUxeKAt-F_WSAl7H-MedobJbQQ0Pdb-vV25u/exec'; // <--- REPLACE with your deployed Apps Script web app URL
 const STORAGE = {
   READ:      'dispatch_read',
   INTERVAL:  'dispatch_interval',
@@ -706,6 +706,7 @@ let feeds         = [];
 let articles       = [];   // {id, feedId, feedName, title, link, description, pubDate, timestamp}
 let readSet        = new Set();
 let lastFetch       = null;
+let fetchErrors     = [];
 let pollTimer       = null;
 let isFetching      = false;
 const articleSummaries = {}; // id -> { text, loading, error }
@@ -730,9 +731,10 @@ async function loadFromBackend() {
     const res = await fetch(GAS_URL);
     const data = await res.json();
 
-    feeds      = data.feeds || [];
-    articles   = data.articles || [];
-    lastFetch  = data.lastFetch || null;
+    feeds        = data.feeds || [];
+    articles     = data.articles || [];
+    lastFetch    = data.lastFetch || null;
+    fetchErrors  = data.fetchErrors || [];
 
     if (data.summary && data.summary.rawText) {
       const htmlOut = markdownToHtml(data.summary.rawText);
@@ -745,6 +747,23 @@ async function loadFromBackend() {
     setStatus('idle');
   }
   renderLastFetchInfo();
+  renderFeedErrorBanner();
+}
+
+function renderFeedErrorBanner() {
+  const existing = document.getElementById('feedErrorBanner');
+  if (existing) existing.remove();
+  if (!fetchErrors.length) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'feedErrorBanner';
+  banner.style.cssText = 'margin:8px 16px 0;padding:8px 12px;background:#fbe9e7;border-left:2px solid var(--accent);' +
+    'border-radius:var(--radius);font-size:11.5px;color:var(--accent-2);line-height:1.5;';
+  banner.innerHTML = `<strong>${fetchErrors.length} feed${fetchErrors.length > 1 ? 's' : ''} failed last fetch:</strong> ` +
+    fetchErrors.map(e => `${esc(e.feedName)} (${esc(e.error.slice(0, 80))})`).join(' · ');
+
+  const toolbar = document.querySelector('.feed-toolbar');
+  if (toolbar) toolbar.insertAdjacentElement('afterend', banner);
 }
 
 // ── LOCAL PREFS (read status, UI settings only) ───────────────────
@@ -958,9 +977,13 @@ async function forceFetchNow() {
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Fetch failed');
-    await loadFromBackend();
+    await loadFromBackend(); // also refreshes fetchErrors via the global state
     renderArticles();
-    toast(data.added > 0 ? `${data.added} new article${data.added > 1 ? 's' : ''}` : 'No new articles');
+
+    const errCount = (data.errors || []).length;
+    let msg = data.added > 0 ? `${data.added} new article${data.added > 1 ? 's' : ''}` : 'No new articles';
+    if (errCount > 0) msg += ` — ${errCount} feed${errCount > 1 ? 's' : ''} failed (see banner below toolbar)`;
+    toast(msg);
   } catch (e) {
     console.error(e);
     toast('Force fetch failed: ' + e.message);
