@@ -31,6 +31,8 @@
     --cluster:   #e8f4f0;    /* teal tint for grouped articles */
     --cluster-b: #2e7d6f;
     --error-bg:  #fbe9e7;
+    --toast-bg:  #1a1a1a;
+    --toast-text: #f5f5f3;
     --radius:    3px;
     --mono: 'IBM Plex Mono', 'Consolas', monospace;
     --sans: 'Inter', 'Helvetica Neue', Arial, sans-serif;
@@ -55,6 +57,8 @@
     --cluster:   #07211c;    /* deep teal tint for grouped articles */
     --cluster-b: #2fcdb0;
     --error-bg:  #2a0e0a;
+    --toast-bg:  #e8e8e5;
+    --toast-text: #161616;
   }
   html[data-theme="dark"] img,
   html[data-theme="dark"] .masthead-title span {
@@ -237,18 +241,22 @@
 
   /* single article row */
   .article-row {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 8px;
+    display: block;
     padding: 11px 0 11px;
     border-bottom: 1px solid var(--rule);
-    align-items: start;
     cursor: pointer;
     transition: background 0.1s;
   }
+  .article-row-top {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: start;
+  }
   .article-row:hover { background: var(--paper-2); margin: 0 -24px; padding-left: 24px; padding-right: 24px; }
   .article-row.read .article-title,
-  .article-row.read .article-meta { color: var(--read-ink); }
+  .article-row.read .article-meta,
+  .article-row.read .article-description { color: var(--read-ink); }
   .article-row.read { background: var(--read-bg); }
   .article-row.read:hover { background: var(--paper-3); }
 
@@ -269,6 +277,13 @@
   }
   .article-meta .source { color: var(--accent); font-weight: 500; }
   .article-time { flex-shrink: 0; font-family: var(--mono); font-size: 10px; color: var(--ink-4); padding-top: 3px; }
+  .article-description {
+    font-size: 12.5px;
+    color: var(--ink-3);
+    line-height: 1.5;
+    margin-top: 5px;
+    cursor: pointer;
+  }
 
   /* cluster (grouped similar articles) */
   .cluster-row {
@@ -604,7 +619,7 @@
   /* ── TOAST ─────────────────────────────────────────────────── */
   .toast {
     position: fixed; bottom: 24px; right: 24px;
-    background: var(--ink); color: white;
+    background: var(--toast-bg); color: var(--toast-text);
     font-family: var(--mono); font-size: 11px;
     padding: 10px 16px; border-radius: var(--radius);
     opacity: 0; transform: translateY(10px);
@@ -615,31 +630,32 @@
   .toast.show { opacity: 1; transform: translateY(0); }
 
   /* ── ARTICLE SUMMARIZE BUTTON ─────────────────────────────────── */
-  .article-row { position: relative; }
   .article-actions {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: flex-end;
     gap: 6px;
+    flex-shrink: 0;
   }
   .summarize-btn {
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.4px;
-    padding: 3px 8px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border: 1px solid var(--rule);
-    border-radius: var(--radius);
+    border-radius: 50%;
     background: var(--paper);
     color: var(--ink-3);
     cursor: pointer;
-    white-space: nowrap;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
+  .summarize-btn.active { background: var(--cluster); color: var(--cluster-b); border-color: var(--cluster-b); }
   .summarize-btn:hover { background: var(--cluster); color: var(--cluster-b); border-color: var(--cluster-b); }
   .summarize-btn:disabled { opacity: 0.6; cursor: default; }
-  .summarize-btn .spinner { width: 9px; height: 9px; border-width: 1.5px; margin-right: 3px; }
+  .summarize-btn .spinner { width: 10px; height: 10px; border-width: 1.5px; margin: 0; }
 
   .article-summary-panel {
-    grid-column: 1 / -1;
     margin-top: 8px;
     padding: 10px 12px;
     background: var(--cluster);
@@ -827,7 +843,7 @@
 ================================================================ */
 
 // ── CONSTANTS ────────────────────────────────────────────────────
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwVNyv-Wq6yPTTb4cR50qbqve_Da-wlCCXkQjJwNLhaoHiZN9JJvmQAw0URKb1VXyL5/exec'; // <--- REPLACE with your deployed Apps Script web app URL
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzPpBzz2-kZ9hIIVLjbpijY9faBRjWDtUxeKAt-F_WSAl7H-MedobJbQQ0Pdb-vV25u/exec'; // <--- REPLACE with your deployed Apps Script web app URL
 const STORAGE = {
   READ:      'dispatch_read',
   INTERVAL:  'dispatch_interval',
@@ -1328,23 +1344,35 @@ function renderSingleRow(a) {
   const sum = articleSummaries[a.id];
   return `
     <div class="article-row${read ? ' read' : ''}">
-      <div onclick="openArticle(event, '${a.id}', '${esc(a.link)}')" style="cursor:pointer;">
-        <div class="article-title">${esc(a.title)}</div>
-        <div class="article-meta">
-          <span class="source">${esc(a.feedName)}</span>
-          <span>${esc(a.description?.slice(0, 120) || '')}</span>
+      <div class="article-row-top">
+        <div onclick="openArticle(event, '${a.id}', '${esc(a.link)}')" style="cursor:pointer;flex:1;min-width:0;">
+          <div class="article-title">${esc(a.title)}</div>
+          <div class="article-meta">
+            <span class="source">${esc(a.feedName)}</span>
+          </div>
+        </div>
+        <div class="article-actions">
+          <div class="article-time">${relativeTime(a.timestamp)}</div>
+          <button class="summarize-btn${sum && sum.text ? ' active' : ''}" id="sumbtn_${a.id}" title="${sum && sum.text ? 'Hide summary' : 'Summarise with AI'}" onclick="event.stopPropagation(); summariseArticle('${a.id}')">
+            ${sum && sum.loading ? '<span class="spinner"></span>' : geminiIconSvg()}
+          </button>
         </div>
       </div>
-      <div class="article-actions">
-        <div class="article-time">${relativeTime(a.timestamp)}</div>
-        <button class="summarize-btn" id="sumbtn_${a.id}" onclick="event.stopPropagation(); summariseArticle('${a.id}')">
-          ${sum && sum.loading ? '<span class="spinner"></span>' : (sum && sum.text ? 'Hide' : '✦ Summarise')}
-        </button>
-      </div>
+      <div class="article-description" onclick="openArticle(event, '${a.id}', '${esc(a.link)}')">${esc(a.description?.slice(0, 160) || '')}</div>
       <div class="article-summary-panel${sum && sum.text ? ' open' : ''}${sum && sum.error ? ' error' : ''}" id="sumpanel_${a.id}">
         ${sum ? (sum.error ? esc(sum.error) : esc(sum.text || '')) : ''}
       </div>
     </div>`;
+}
+
+// Simple sparkle/spark glyph used as a generic "AI" indicator — not
+// Google's Gemini logo, which is a registered trademark and not something
+// we can reproduce. This is a neutral four-point sparkle, same visual
+// language used broadly across AI features (distinct from any single brand).
+function geminiIconSvg() {
+  return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 2 L14.2 9.8 L22 12 L14.2 14.2 L12 22 L9.8 14.2 L2 12 L9.8 9.8 Z" fill="currentColor"/>
+  </svg>`;
 }
 
 function toggleCluster(id, articleIds) {
