@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dispatch — Personal News Reader</title>
+<style>
+  /* ── TOKENS ────────────────────────────────────────────────── */
+  :root {
+    --ink:       #0f0f0f;
+    --ink-2:     #3a3a3a;
+    --ink-3:     #6b6b6b;
+    --ink-4:     #a0a0a0;
+    --paper:     #fafaf8;
+    --paper-2:   #f0efeb;
+    --paper-3:   #e4e2db;
+    --rule:      #d6d3ca;
+    --accent:    #c0392b;    /* telegraph red */
+    --accent-2:  #922b21;
+    --read-bg:   #f5f4f0;
+    --read-ink:  #b0aca0;
+    --cluster:   #e8f4f0;    /* teal tint for grouped articles */
+    --cluster-b: #2e7d6f;
+    --radius:    3px;
+    --mono: 'IBM Plex Mono', 'Consolas', monospace;
+    --sans: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    --serif: 'Georgia', 'Times New Roman', serif;
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* ── MASTHEAD ──────────────────────────────────────────────── */
+  .masthead {
+    border-bottom: 3px double var(--ink);
+    padding: 12px 24px 10px;
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
+    background: var(--paper);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .masthead-title {
+    font-family: 'Playfair Display', var(--serif);
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--ink);
+  }
+  .masthead-title span { color: var(--accent); }
+  .masthead-date {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .masthead-status {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--ink-3);
+    font-family: var(--mono);
+  }
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--ink-4);
+    transition: background 0.3s;
+  }
+  .status-dot.live { background: #27ae60; }
+  .status-dot.fetching { background: #f39c12; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ── TABS ──────────────────────────────────────────────────── */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper);
+    padding: 0 24px;
+  }
+  .tab-btn {
+    padding: 10px 18px 9px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    font-family: var(--mono);
+    color: var(--ink-3);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .tab-btn:hover { color: var(--ink); }
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  /* ── LAYOUT ────────────────────────────────────────────────── */
+  .pane { display: none; }
+  .pane.active { display: block; }
+
+  /* ── FEED TOOLBAR ──────────────────────────────────────────── */
+  .feed-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 24px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper-2);
+    flex-wrap: wrap;
+  }
+  .feed-select {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 5px 8px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--paper);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .toolbar-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 5px 10px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--paper);
+    color: var(--ink-2);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+  }
+  .toolbar-btn:hover { background: var(--paper-3); }
+  .toolbar-btn.danger { border-color: var(--accent); color: var(--accent); }
+  .toolbar-btn.danger:hover { background: var(--accent); color: white; }
+  .toolbar-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+  .toolbar-btn.primary:hover { background: var(--accent-2); }
+  .article-count {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-3);
+  }
+
+  /* ── ARTICLE LIST ──────────────────────────────────────────── */
+  .article-list {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 24px 60px;
+  }
+
+  .feed-group-header {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--ink-4);
+    padding: 14px 0 6px;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 0;
+    position: sticky;
+    top: 115px;
+    background: var(--paper);
+    z-index: 5;
+  }
+
+  /* single article row */
+  .article-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    padding: 11px 0 11px;
+    border-bottom: 1px solid var(--rule);
+    align-items: start;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .article-row:hover { background: var(--paper-2); margin: 0 -24px; padding-left: 24px; padding-right: 24px; }
+  .article-row.read .article-title,
+  .article-row.read .article-meta { color: var(--read-ink); }
+  .article-row.read { background: var(--read-bg); }
+  .article-row.read:hover { background: var(--paper-3); }
+
+  .article-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+    line-height: 1.4;
+    margin-bottom: 3px;
+  }
+  .article-meta {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .article-meta .source { color: var(--accent); font-weight: 500; }
+  .article-time { flex-shrink: 0; font-family: var(--mono); font-size: 10px; color: var(--ink-4); padding-top: 3px; }
+
+  /* cluster (grouped similar articles) */
+  .cluster-row {
+    border-left: 3px solid var(--cluster-b);
+    background: var(--cluster);
+    margin: 4px 0;
+    border-radius: 0 var(--radius) var(--radius) 0;
+  }
+  .cluster-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    cursor: pointer;
+  }
+  .cluster-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--cluster-b);
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+  .cluster-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+    flex: 1;
+  }
+  .cluster-toggle {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--cluster-b);
+    flex-shrink: 0;
+  }
+  .cluster-articles {
+    display: none;
+    border-top: 1px solid var(--rule);
+  }
+  .cluster-articles.open { display: block; }
+  .cluster-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+    cursor: pointer;
+    gap: 8px;
+    transition: background 0.1s;
+  }
+  .cluster-item:last-child { border-bottom: none; }
+  .cluster-item:hover { background: rgba(46,125,111,0.08); }
+  .cluster-item.read .cluster-item-title { color: var(--read-ink); }
+  .cluster-item-title { font-size: 13px; font-weight: 400; color: var(--ink-2); line-height: 1.4; }
+  .cluster-item-meta { font-family: var(--mono); font-size: 10px; color: var(--ink-3); }
+
+  /* empty state */
+  .empty-state {
+    text-align: center;
+    padding: 80px 24px;
+    color: var(--ink-3);
+  }
+  .empty-state-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+  .empty-state h3 { font-size: 16px; font-weight: 500; margin-bottom: 6px; color: var(--ink-2); }
+  .empty-state p { font-size: 13px; max-width: 340px; margin: 0 auto; }
+
+  /* ── SUMMARY TAB ───────────────────────────────────────────── */
+  .summary-pane {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 24px 24px 60px;
+  }
+  .summary-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .summary-toolbar h2 {
+    font-family: 'Playfair Display', var(--serif);
+    font-size: 22px;
+    font-weight: 600;
+    flex: 1;
+  }
+  .summary-body {
+    background: white;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    padding: 24px;
+    min-height: 300px;
+    line-height: 1.7;
+    font-size: 14px;
+    color: var(--ink-2);
+  }
+  .summary-body h3 {
+    font-family: 'Playfair Display', var(--serif);
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ink);
+    margin: 18px 0 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .summary-body h3:first-child { margin-top: 0; }
+  .summary-body p { margin-bottom: 10px; }
+  .summary-body ul { padding-left: 18px; margin-bottom: 10px; }
+  .summary-body li { margin-bottom: 4px; }
+  .summary-placeholder {
+    color: var(--ink-4);
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 260px;
+    gap: 10px;
+    text-align: center;
+  }
+  .summary-placeholder .icon { font-size: 36px; opacity: 0.3; }
+  .summary-meta {
+    margin-top: 12px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-4);
+    text-align: right;
+  }
+
+  /* ── SETTINGS MODAL ────────────────────────────────────────── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(15,15,15,0.55);
+    z-index: 200;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 60px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    width: 560px;
+    max-width: 95vw;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    padding: 16px 20px 14px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .modal-header h3 {
+    font-size: 14px;
+    font-weight: 600;
+    flex: 1;
+  }
+  .modal-close {
+    background: none; border: none; cursor: pointer;
+    font-size: 18px; color: var(--ink-3); line-height: 1;
+    padding: 2px 4px;
+  }
+  .modal-close:hover { color: var(--ink); }
+  .modal-body { padding: 20px; }
+
+  .feed-input-row {
+    display: flex; gap: 8px; margin-bottom: 14px;
+  }
+  .feed-input {
+    flex: 1;
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 7px 10px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: white;
+    color: var(--ink);
+    outline: none;
+  }
+  .feed-input:focus { border-color: var(--accent); }
+  .feed-name-input {
+    width: 140px;
+  }
+
+  .feed-list { list-style: none; }
+  .feed-list-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--rule);
+    font-size: 12px;
+  }
+  .feed-list-item:last-child { border-bottom: none; }
+  .feed-list-url {
+    font-family: var(--mono);
+    color: var(--ink-2);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+  }
+  .feed-list-name {
+    font-weight: 500;
+    color: var(--ink);
+    min-width: 80px;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .feed-remove {
+    background: none; border: none; cursor: pointer;
+    color: var(--ink-4); font-size: 16px; line-height: 1;
+    flex-shrink: 0; padding: 2px;
+    transition: color 0.15s;
+  }
+  .feed-remove:hover { color: var(--accent); }
+
+  .modal-section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--ink-4);
+    margin-bottom: 8px;
+    margin-top: 16px;
+  }
+  .modal-section-label:first-child { margin-top: 0; }
+
+  /* PROMPT CONFIG */
+  .prompt-textarea {
+    width: 100%;
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 10px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: white;
+    color: var(--ink);
+    resize: vertical;
+    min-height: 100px;
+    line-height: 1.5;
+    outline: none;
+  }
+  .prompt-textarea:focus { border-color: var(--accent); }
+
+  /* ── LOADING ───────────────────────────────────────────────── */
+  .spinner {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid var(--rule);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── TOAST ─────────────────────────────────────────────────── */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--ink); color: white;
+    font-family: var(--mono); font-size: 11px;
+    padding: 10px 16px; border-radius: var(--radius);
+    opacity: 0; transform: translateY(10px);
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 999; pointer-events: none;
+    max-width: 280px;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  /* ── RESPONSIVE ─────────────────────────────────────────────── */
+  @media (max-width: 600px) {
+    .masthead { padding: 10px 14px; }
+    .masthead-title { font-size: 20px; }
+    .feed-toolbar { padding: 8px 14px; }
+    .article-list { padding: 0 14px 40px; }
+    .summary-pane { padding: 16px 14px 40px; }
+    .tabs { padding: 0 14px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- MASTHEAD -->
+<header class="masthead">
+  <div class="masthead-title">Dis<span>patch</span></div>
+  <div class="masthead-date" id="mastheadDate"></div>
+  <div class="masthead-status">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">idle</span>
+  </div>
+</header>
+
+<!-- TABS -->
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="feed">Feed</button>
+  <button class="tab-btn" data-tab="summary">Summary</button>
+</nav>
+
+<!-- ── FEED PANE ──────────────────────────────────────────────── -->
+<div class="pane active" id="pane-feed">
+  <div class="feed-toolbar">
+    <select class="feed-select" id="feedFilter">
+      <option value="all">All Feeds</option>
+    </select>
+    <select class="feed-select" id="readFilter">
+      <option value="unread">Unread</option>
+      <option value="all">All</option>
+      <option value="read">Read</option>
+    </select>
+    <button class="toolbar-btn" id="refreshBtn">↻ Refresh</button>
+    <button class="toolbar-btn" id="markAllReadBtn">Mark all read</button>
+    <button class="toolbar-btn" id="openSettingsBtn">⚙ Feeds</button>
+    <span class="article-count" id="articleCount"></span>
+  </div>
+  <div class="article-list" id="articleList">
+    <div class="empty-state">
+      <div class="empty-state-icon">📡</div>
+      <h3>No feeds yet</h3>
+      <p>Click <strong>⚙ Feeds</strong> to add RSS feeds and start reading.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── SUMMARY PANE ───────────────────────────────────────────── -->
+<div class="pane" id="pane-summary">
+  <div class="summary-pane">
+    <div class="summary-toolbar">
+      <h2>News Summary</h2>
+      <button class="toolbar-btn" id="openPromptBtn">⚙ Configure prompt</button>
+      <button class="toolbar-btn primary" id="generateSummaryBtn">Generate summary</button>
+    </div>
+    <div class="summary-body" id="summaryBody">
+      <div class="summary-placeholder">
+        <div class="icon">✦</div>
+        <p>Click <strong>Generate summary</strong> to get an AI digest of your unread articles.</p>
+      </div>
+    </div>
+    <div class="summary-meta" id="summaryMeta"></div>
+  </div>
+</div>
+
+<!-- ── SETTINGS MODAL ─────────────────────────────────────────── -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Feed Settings</h3>
+      <button class="modal-close" id="closeSettings">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section-label">Add RSS Feed</div>
+      <div class="feed-input-row">
+        <input class="feed-input feed-name-input" id="feedNameInput" type="text" placeholder="Name (e.g. Reuters)">
+        <input class="feed-input" id="feedUrlInput" type="url" placeholder="https://feeds.reuters.com/reuters/topNews">
+        <button class="toolbar-btn primary" id="addFeedBtn">Add</button>
+      </div>
+
+      <div class="modal-section-label">Active Feeds</div>
+      <ul class="feed-list" id="feedList">
+        <li style="font-size:12px;color:var(--ink-4);padding:8px 0;">No feeds added yet.</li>
+      </ul>
+
+      <div class="modal-section-label" style="margin-top:20px;">Refresh Interval</div>
+      <div class="feed-input-row">
+        <select class="feed-input" id="refreshInterval" style="width:auto;">
+          <option value="5">Every 5 minutes</option>
+          <option value="15" selected>Every 15 minutes</option>
+          <option value="30">Every 30 minutes</option>
+          <option value="60">Every hour</option>
+        </select>
+      </div>
+
+      <div class="modal-section-label">Grouping similarity threshold</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+        <input type="range" id="similarityThreshold" min="0.2" max="0.9" step="0.05" value="0.45" style="flex:1;">
+        <span class="feed-input" style="width:42px;text-align:center;padding:4px;" id="thresholdDisplay">0.45</span>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="toolbar-btn danger" id="clearReadBtn" style="margin-top:0">Clear read history</button>
+        <button class="toolbar-btn danger" id="clearAllBtn" style="margin-top:0">Clear all data</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── PROMPT MODAL ────────────────────────────────────────────── -->
+<div class="modal-overlay" id="promptModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Summary Prompt</h3>
+      <button class="modal-close" id="closePrompt">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section-label">System prompt for AI summary</div>
+      <textarea class="prompt-textarea" id="summaryPromptInput" rows="6"></textarea>
+      <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
+        <button class="toolbar-btn" id="resetPromptBtn">Reset to default</button>
+        <button class="toolbar-btn primary" id="savePromptBtn">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================================================================
+   DISPATCH — Personal RSS Reader
+   Storage: localStorage
+   RSS fetching: allorigins.win CORS proxy
+   AI Summary: Anthropic API (claude-sonnet-4-6)
+   Background polling: setInterval
+================================================================ */
+
+// ── CONSTANTS ────────────────────────────────────────────────────
+const CORS_PROXY   = 'https://api.allorigins.win/get?url=';
+const STORAGE = {
+  FEEDS:     'dispatch_feeds',
+  ARTICLES:  'dispatch_articles',
+  READ:      'dispatch_read',
+  INTERVAL:  'dispatch_interval',
+  THRESHOLD: 'dispatch_threshold',
+  PROMPT:    'dispatch_prompt',
+  SUMMARY:   'dispatch_summary',
+};
+const DEFAULT_PROMPT = `You are a senior geopolitical and financial analyst producing a concise daily briefing.
+
+Given a list of news headlines and their sources, write a structured summary covering:
+1. **Top Stories** — the 3-5 most significant developments
+2. **Geopolitics & Macro** — any notable geopolitical shifts, central bank signals, or economic data
+3. **Markets & Business** — key corporate or market-moving news
+4. **To Watch** — emerging stories or trends worth monitoring
+
+Be analytical, not just descriptive. Cite sources inline where relevant. Keep to ~400 words. Use plain Markdown formatting with **bold** for emphasis.`;
+
+// ── STATE ────────────────────────────────────────────────────────
+let feeds       = [];
+let articles    = [];   // {id, feedName, feedUrl, title, link, description, pubDate, timestamp}
+let readSet     = new Set();
+let pollTimer   = null;
+let isFetching  = false;
+
+// ── INIT ─────────────────────────────────────────────────────────
+function init() {
+  loadState();
+  renderMastheadDate();
+  renderFeedFilter();
+  renderFeedList();
+  renderArticles();
+  updateIntervalDisplay();
+  startPolling();
+
+  // tab switch
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(`pane-${btn.dataset.tab}`).classList.add('active');
+    });
+  });
+
+  // toolbar
+  document.getElementById('refreshBtn').addEventListener('click', () => fetchAll());
+  document.getElementById('markAllReadBtn').addEventListener('click', markAllRead);
+  document.getElementById('openSettingsBtn').addEventListener('click', () => openModal('settingsModal'));
+  document.getElementById('feedFilter').addEventListener('change', renderArticles);
+  document.getElementById('readFilter').addEventListener('change', renderArticles);
+
+  // settings modal
+  document.getElementById('closeSettings').addEventListener('click', () => closeModal('settingsModal'));
+  document.getElementById('addFeedBtn').addEventListener('click', addFeed);
+  document.getElementById('feedUrlInput').addEventListener('keydown', e => { if (e.key === 'Enter') addFeed(); });
+  document.getElementById('clearReadBtn').addEventListener('click', clearRead);
+  document.getElementById('clearAllBtn').addEventListener('click', clearAll);
+  document.getElementById('refreshInterval').addEventListener('change', e => {
+    localStorage.setItem(STORAGE.INTERVAL, e.target.value);
+    startPolling();
+  });
+  const slider = document.getElementById('similarityThreshold');
+  slider.addEventListener('input', e => {
+    document.getElementById('thresholdDisplay').textContent = e.target.value;
+    localStorage.setItem(STORAGE.THRESHOLD, e.target.value);
+    renderArticles();
+  });
+
+  // prompt modal
+  document.getElementById('openPromptBtn').addEventListener('click', () => {
+    document.getElementById('summaryPromptInput').value = getSummaryPrompt();
+    openModal('promptModal');
+  });
+  document.getElementById('closePrompt').addEventListener('click', () => closeModal('promptModal'));
+  document.getElementById('savePromptBtn').addEventListener('click', () => {
+    localStorage.setItem(STORAGE.PROMPT, document.getElementById('summaryPromptInput').value);
+    closeModal('promptModal');
+    toast('Prompt saved');
+  });
+  document.getElementById('resetPromptBtn').addEventListener('click', () => {
+    document.getElementById('summaryPromptInput').value = DEFAULT_PROMPT;
+  });
+
+  // summary
+  document.getElementById('generateSummaryBtn').addEventListener('click', generateSummary);
+
+  // close modals on overlay click
+  ['settingsModal','promptModal'].forEach(id => {
+    document.getElementById(id).addEventListener('click', e => {
+      if (e.target.id === id) closeModal(id);
+    });
+  });
+}
+
+// ── STATE PERSISTENCE ─────────────────────────────────────────────
+function loadState() {
+  try { feeds    = JSON.parse(localStorage.getItem(STORAGE.FEEDS))    || []; } catch(e){ feeds=[]; }
+  try { articles = JSON.parse(localStorage.getItem(STORAGE.ARTICLES)) || []; } catch(e){ articles=[]; }
+  try { readSet  = new Set(JSON.parse(localStorage.getItem(STORAGE.READ)) || []); } catch(e){ readSet=new Set(); }
+
+  const iv = localStorage.getItem(STORAGE.INTERVAL) || '15';
+  document.getElementById('refreshInterval').value = iv;
+
+  const thr = localStorage.getItem(STORAGE.THRESHOLD) || '0.45';
+  document.getElementById('similarityThreshold').value = thr;
+  document.getElementById('thresholdDisplay').textContent = thr;
+
+  // restore cached summary
+  const cached = localStorage.getItem(STORAGE.SUMMARY);
+  if (cached) {
+    try {
+      const s = JSON.parse(cached);
+      renderSummary(s.html, s.meta);
+    } catch(e){}
+  }
+}
+
+function saveArticles() {
+  // Keep at most 2000 articles, newest first
+  const sorted = [...articles].sort((a,b) => b.timestamp - a.timestamp).slice(0, 2000);
+  articles = sorted;
+  localStorage.setItem(STORAGE.ARTICLES, JSON.stringify(articles));
+}
+
+function saveRead() {
+  localStorage.setItem(STORAGE.READ, JSON.stringify([...readSet]));
+}
+
+// ── DATE ─────────────────────────────────────────────────────────
+function renderMastheadDate() {
+  const now = new Date();
+  document.getElementById('mastheadDate').textContent =
+    now.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+}
+
+function relativeTime(ts) {
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60000);
+  if (m < 1)  return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
+}
+
+// ── FEED MANAGEMENT ───────────────────────────────────────────────
+function addFeed() {
+  const url  = document.getElementById('feedUrlInput').value.trim();
+  const name = document.getElementById('feedNameInput').value.trim() || extractName(url);
+  if (!url) return toast('Enter a feed URL');
+  if (!url.startsWith('http')) return toast('URL must start with http');
+  if (feeds.find(f => f.url === url)) return toast('Feed already added');
+
+  feeds.push({ url, name, id: Date.now().toString() });
+  localStorage.setItem(STORAGE.FEEDS, JSON.stringify(feeds));
+  document.getElementById('feedUrlInput').value = '';
+  document.getElementById('feedNameInput').value = '';
+  renderFeedList();
+  renderFeedFilter();
+  fetchFeed(feeds[feeds.length - 1]);
+  toast(`Added: ${name}`);
+}
+
+function removeFeed(id) {
+  feeds = feeds.filter(f => f.id !== id);
+  localStorage.setItem(STORAGE.FEEDS, JSON.stringify(feeds));
+  articles = articles.filter(a => a.feedId !== id);
+  saveArticles();
+  renderFeedList();
+  renderFeedFilter();
+  renderArticles();
+  toast('Feed removed');
+}
+
+function extractName(url) {
+  try {
+    return new URL(url).hostname.replace('www.', '').replace('feeds.', '').split('.')[0];
+  } catch(e) { return 'Feed'; }
+}
+
+function renderFeedList() {
+  const ul = document.getElementById('feedList');
+  if (!feeds.length) {
+    ul.innerHTML = '<li style="font-size:12px;color:var(--ink-4);padding:8px 0;">No feeds added yet.</li>';
+    return;
+  }
+  ul.innerHTML = feeds.map(f => `
+    <li class="feed-list-item">
+      <span class="feed-list-name">${esc(f.name)}</span>
+      <span class="feed-list-url">${esc(f.url)}</span>
+      <button class="feed-remove" onclick="removeFeed('${f.id}')" title="Remove">×</button>
+    </li>
+  `).join('');
+}
+
+function renderFeedFilter() {
+  const sel = document.getElementById('feedFilter');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="all">All Feeds</option>' +
+    feeds.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('');
+  sel.value = feeds.find(f => f.id === cur) ? cur : 'all';
+}
+
+function updateIntervalDisplay() {
+  const iv = localStorage.getItem(STORAGE.INTERVAL) || '15';
+  document.getElementById('refreshInterval').value = iv;
+}
+
+// ── FETCHING ─────────────────────────────────────────────────────
+async function fetchAll() {
+  if (isFetching) return;
+  if (!feeds.length) { toast('Add feeds first'); return; }
+  setStatus('fetching');
+  isFetching = true;
+  let added = 0;
+  for (const feed of feeds) {
+    try { added += await fetchFeed(feed); } catch(e){}
+  }
+  isFetching = false;
+  setStatus('live');
+  saveArticles();
+  renderArticles();
+  if (added > 0) toast(`${added} new article${added > 1 ? 's' : ''}`);
+  else toast('No new articles');
+}
+
+async function fetchFeed(feed) {
+  const proxyUrl = CORS_PROXY + encodeURIComponent(feed.url);
+  const res = await fetch(proxyUrl);
+  const json = await res.json();
+  const xmlStr = json.contents;
+  const parser = new DOMParser();
+  const xml = parser.parseFromString(xmlStr, 'text/xml');
+
+  const items = [...xml.querySelectorAll('item, entry')];
+  let added = 0;
+
+  items.forEach(item => {
+    const title       = getText(item, 'title');
+    const link        = getText(item, 'link') || item.querySelector('link')?.getAttribute('href') || '';
+    const description = stripHtml(getText(item, 'description') || getText(item, 'summary') || '');
+    const pubDate     = getText(item, 'pubDate') || getText(item, 'published') || getText(item, 'updated') || '';
+    const timestamp   = pubDate ? new Date(pubDate).getTime() : Date.now();
+    const id          = feed.id + '_' + btoa(encodeURIComponent(link || title)).slice(0, 40);
+
+    if (!title) return;
+    if (articles.find(a => a.id === id)) return;
+
+    articles.push({ id, feedId: feed.id, feedName: feed.name, title, link, description, pubDate, timestamp });
+    added++;
+  });
+
+  return added;
+}
+
+function getText(el, tag) {
+  const node = el.querySelector(tag);
+  return node ? (node.textContent || '').trim() : '';
+}
+
+function stripHtml(html) {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return tmp.textContent?.trim().slice(0, 200) || '';
+}
+
+// ── POLLING ───────────────────────────────────────────────────────
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  const minutes = parseInt(localStorage.getItem(STORAGE.INTERVAL) || '15');
+  pollTimer = setInterval(fetchAll, minutes * 60 * 1000);
+  // also fetch on load if feeds exist and articles are stale
+  if (feeds.length && (Date.now() - getLatestTs() > 2 * 60 * 1000)) {
+    fetchAll();
+  }
+}
+
+function getLatestTs() {
+  return articles.reduce((m, a) => Math.max(m, a.timestamp), 0);
+}
+
+// ── STATUS ────────────────────────────────────────────────────────
+function setStatus(state) {
+  const dot  = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  dot.className = 'status-dot ' + state;
+  const labels = { fetching: 'fetching…', live: 'updated', idle: 'idle' };
+  text.textContent = labels[state] || state;
+}
+
+// ── SIMILARITY ────────────────────────────────────────────────────
+function tokenize(str) {
+  return str.toLowerCase().replace(/[^\w\s]/g,'').split(/\s+/).filter(w => w.length > 2);
+}
+
+function jaccard(a, b) {
+  const sa = new Set(tokenize(a));
+  const sb = new Set(tokenize(b));
+  const inter = [...sa].filter(x => sb.has(x)).length;
+  const union = new Set([...sa, ...sb]).size;
+  return union === 0 ? 0 : inter / union;
+}
+
+function clusterArticles(arts) {
+  const threshold = parseFloat(localStorage.getItem(STORAGE.THRESHOLD) || '0.45');
+  const clusters  = [];
+  const assigned  = new Set();
+
+  arts.forEach((art, i) => {
+    if (assigned.has(i)) return;
+    const group = [i];
+    arts.forEach((other, j) => {
+      if (i === j || assigned.has(j)) return;
+      const sim = jaccard(art.title, other.title);
+      if (sim >= threshold) {
+        group.push(j);
+        assigned.add(j);
+      }
+    });
+    assigned.add(i);
+    clusters.push(group.map(idx => arts[idx]));
+  });
+
+  return clusters;
+}
+
+// ── RENDER ARTICLES ───────────────────────────────────────────────
+function renderArticles() {
+  const feedId    = document.getElementById('feedFilter').value;
+  const readMode  = document.getElementById('readFilter').value;
+
+  let filtered = [...articles].sort((a, b) => b.timestamp - a.timestamp);
+  if (feedId !== 'all') filtered = filtered.filter(a => a.feedId === feedId);
+  if (readMode === 'unread') filtered = filtered.filter(a => !readSet.has(a.id));
+  if (readMode === 'read')   filtered = filtered.filter(a =>  readSet.has(a.id));
+
+  const count = document.getElementById('articleCount');
+  count.textContent = `${filtered.length} article${filtered.length !== 1 ? 's' : ''}`;
+
+  const list = document.getElementById('articleList');
+  if (!filtered.length && !feeds.length) {
+    list.innerHTML = `<div class="empty-state">
+      <div class="empty-state-icon">📡</div>
+      <h3>No feeds yet</h3>
+      <p>Click <strong>⚙ Feeds</strong> to add RSS feeds and start reading.</p>
+    </div>`;
+    return;
+  }
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state">
+      <div class="empty-state-icon">✓</div>
+      <h3>All caught up</h3>
+      <p>No ${readMode === 'unread' ? 'unread ' : ''}articles to show. Try refreshing or switching the filter.</p>
+    </div>`;
+    return;
+  }
+
+  const clusters = clusterArticles(filtered);
+  const html     = clusters.map(cluster => renderCluster(cluster)).join('');
+  list.innerHTML = html;
+}
+
+function renderCluster(cluster) {
+  if (cluster.length === 1) {
+    return renderSingleRow(cluster[0]);
+  }
+  // Multiple similar articles
+  const primary = cluster[0];
+  const allRead = cluster.every(a => readSet.has(a.id));
+  const clusterId = 'cluster_' + primary.id;
+  return `
+    <div class="cluster-row${allRead ? ' read' : ''}">
+      <div class="cluster-header" onclick="toggleCluster('${clusterId}', ${JSON.stringify(cluster.map(a=>a.id)).replace(/"/g,'&quot;')})">
+        <span class="cluster-label">▸ ${cluster.length} sources</span>
+        <span class="cluster-title">${esc(primary.title)}</span>
+        <span class="cluster-toggle" id="toggle_${clusterId}">expand</span>
+      </div>
+      <div class="cluster-articles" id="${clusterId}">
+        ${cluster.map(a => `
+          <div class="cluster-item${readSet.has(a.id) ? ' read' : ''}" onclick="openArticle(event, '${a.id}', '${esc(a.link)}')">
+            <div>
+              <div class="cluster-item-title">${esc(a.title)}</div>
+              <div class="cluster-item-meta"><span style="color:var(--accent)">${esc(a.feedName)}</span> · ${relativeTime(a.timestamp)}</div>
+            </div>
+            <div class="article-time">${relativeTime(a.timestamp)}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+}
+
+function renderSingleRow(a) {
+  const read = readSet.has(a.id);
+  return `
+    <div class="article-row${read ? ' read' : ''}" onclick="openArticle(event, '${a.id}', '${esc(a.link)}')">
+      <div>
+        <div class="article-title">${esc(a.title)}</div>
+        <div class="article-meta">
+          <span class="source">${esc(a.feedName)}</span>
+          <span>${esc(a.description?.slice(0,120) || '')}</span>
+        </div>
+      </div>
+      <div class="article-time">${relativeTime(a.timestamp)}</div>
+    </div>`;
+}
+
+function toggleCluster(id, articleIds) {
+  const el     = document.getElementById(id);
+  const toggle = document.getElementById('toggle_' + id);
+  const isOpen = el.classList.contains('open');
+  el.classList.toggle('open', !isOpen);
+  toggle.textContent = isOpen ? 'expand' : 'collapse';
+  // mark all as read when expanding
+  if (!isOpen) {
+    articleIds.forEach(aid => readSet.add(aid));
+    saveRead();
+  }
+}
+
+function openArticle(e, id, url) {
+  e.stopPropagation();
+  readSet.add(id);
+  saveRead();
+  renderArticles();
+  if (url && url !== 'undefined') window.open(url, '_blank', 'noopener');
+}
+
+function markAllRead() {
+  const feedId   = document.getElementById('feedFilter').value;
+  const readMode = document.getElementById('readFilter').value;
+  let targets = [...articles];
+  if (feedId !== 'all') targets = targets.filter(a => a.feedId === feedId);
+  if (readMode === 'unread') targets = targets.filter(a => !readSet.has(a.id));
+  targets.forEach(a => readSet.add(a.id));
+  saveRead();
+  renderArticles();
+  toast(`Marked ${targets.length} as read`);
+}
+
+function clearRead() {
+  if (!confirm('Clear read history? Articles will appear unread again.')) return;
+  readSet.clear();
+  saveRead();
+  renderArticles();
+  toast('Read history cleared');
+}
+
+function clearAll() {
+  if (!confirm('Delete ALL data including feeds and articles?')) return;
+  Object.values(STORAGE).forEach(k => localStorage.removeItem(k));
+  feeds = []; articles = []; readSet = new Set();
+  renderFeedList(); renderFeedFilter(); renderArticles();
+  toast('All data cleared');
+}
+
+// ── AI SUMMARY ────────────────────────────────────────────────────
+function getSummaryPrompt() {
+  return localStorage.getItem(STORAGE.PROMPT) || DEFAULT_PROMPT;
+}
+
+async function generateSummary() {
+  const btn = document.getElementById('generateSummaryBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Generating…';
+
+  const unread = articles.filter(a => !readSet.has(a.id)).slice(0, 150);
+  if (!unread.length) {
+    toast('No unread articles to summarise');
+    btn.disabled = false;
+    btn.textContent = 'Generate summary';
+    return;
+  }
+
+  const headlineBlock = unread.map((a, i) =>
+    `${i+1}. [${a.feedName}] ${a.title}${a.description ? ` — ${a.description.slice(0,120)}` : ''}`
+  ).join('\n');
+
+  const userMessage = `Here are ${unread.length} unread headlines from my RSS feeds (newest first). Please analyse and summarise:\n\n${headlineBlock}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        system: getSummaryPrompt(),
+        messages: [{ role: 'user', content: userMessage }],
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+
+    const rawText = data.content.map(b => b.text || '').join('');
+    const htmlOut = markdownToHtml(rawText);
+    const meta    = `Generated ${new Date().toLocaleTimeString()} · ${unread.length} articles analysed`;
+    renderSummary(htmlOut, meta);
+    localStorage.setItem(STORAGE.SUMMARY, JSON.stringify({ html: htmlOut, meta }));
+    toast('Summary generated');
+  } catch(err) {
+    document.getElementById('summaryBody').innerHTML =
+      `<div class="summary-placeholder"><div class="icon">⚠</div><p style="color:var(--accent)">${esc(err.message)}</p></div>`;
+    toast('Error: ' + err.message);
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Generate summary';
+}
+
+function renderSummary(html, meta) {
+  document.getElementById('summaryBody').innerHTML = html;
+  document.getElementById('summaryMeta').textContent = meta || '';
+}
+
+// minimal markdown → html
+function markdownToHtml(md) {
+  return md
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^# (.+)$/gm, '<h3>$1</h3>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^[\-\*] (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+    .split(/\n{2,}/)
+    .map(p => {
+      p = p.trim();
+      if (!p) return '';
+      if (p.startsWith('<h') || p.startsWith('<ul>')) return p;
+      return `<p>${p.replace(/\n/g, ' ')}</p>`;
+    })
+    .join('\n');
+}
+
+// ── MODALS ────────────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ── TOAST ─────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── BOOT ─────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
