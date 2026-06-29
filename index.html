@@ -667,8 +667,8 @@ let pollTimer   = null;
 let isFetching  = false;
 
 // ── INIT ─────────────────────────────────────────────────────────
-function init() {
-  loadState();
+async function init() {
+  await loadState(); // Wait for Drive data to load
   renderMastheadDate();
   renderFeedFilter();
   renderFeedList();
@@ -676,6 +676,81 @@ function init() {
   updateIntervalDisplay();
   startPolling();
 
+// Update the boot event listener at the very bottom of the file:
+document.addEventListener('DOMContentLoaded', async () => await init());
+
+async function loadState() {
+  // 1. Pull Feeds and Summary from Google Drive via GAS
+  try {
+    const res = await fetch(GAS_URL);
+    const data = await res.json();
+    feeds = data.feeds || [];
+    
+    // Load pre-saved summary automatically!
+    if (data.summary && data.summary.rawText) {
+      const htmlOut = markdownToHtml(data.summary.rawText);
+      renderSummary(htmlOut, data.summary.meta);
+    }
+  } catch(e) {
+    console.error("Failed to fetch from Drive:", e);
+    feeds = []; 
+  }
+
+  async function syncFeedsToDrive() {
+  try {
+    await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // text/plain prevents CORS preflight blocks
+      body: JSON.stringify({ action: 'updateFeeds', feeds: feeds })
+    });
+  } catch (err) {
+    console.error("Failed to sync feeds:", err);
+    toast("Failed to sync feeds to Drive");
+  }
+}
+
+  async function addFeed() {
+    const url  = document.getElementById('feedUrlInput').value.trim();
+    const name = document.getElementById('feedNameInput').value.trim() || extractName(url);
+    if (!url) return toast('Enter a feed URL');
+    if (!url.startsWith('http')) return toast('URL must start with http');
+    if (feeds.find(f => f.url === url)) return toast('Feed already added');
+
+    feeds.push({ url, name, id: Date.now().toString() });
+  
+    document.getElementById('feedUrlInput').value = '';
+    document.getElementById('feedNameInput').value = '';
+    renderFeedList();
+    renderFeedFilter();
+    fetchFeed(feeds[feeds.length - 1]);
+    toast(`Added: ${name}. Syncing...`);
+  
+   await syncFeedsToDrive(); // Push to drive
+    }
+
+  async function removeFeed(id) {
+    feeds = feeds.filter(f => f.id !== id);
+    articles = articles.filter(a => a.feedId !== id);
+    saveArticles();
+    renderFeedList();
+    renderFeedFilter();
+    renderArticles();
+    toast('Feed removed. Syncing...');
+  
+  await syncFeedsToDrive(); // Push to drive
+}
+  
+  // 2. Keep local storage strictly for article cache and read status
+  try { articles = JSON.parse(localStorage.getItem(STORAGE.ARTICLES)) || []; } catch(e){ articles=[]; }
+  try { readSet  = new Set(JSON.parse(localStorage.getItem(STORAGE.READ)) || []); } catch(e){ readSet=new Set(); }
+
+  const iv = localStorage.getItem(STORAGE.INTERVAL) || '15';
+  document.getElementById('refreshInterval').value = iv;
+
+  const thr = localStorage.getItem(STORAGE.THRESHOLD) || '0.45';
+  document.getElementById('similarityThreshold').value = thr;
+  document.getElementById('thresholdDisplay').textContent = thr;
+}
   // tab switch
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -789,7 +864,20 @@ function relativeTime(ts) {
 }
 
 // ── FEED MANAGEMENT ───────────────────────────────────────────────
-function addFeed() {
+async function syncFeedsToDrive() {
+  try {
+    await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // text/plain prevents CORS preflight blocks
+      body: JSON.stringify({ action: 'updateFeeds', feeds: feeds })
+    });
+  } catch (err) {
+    console.error("Failed to sync feeds:", err);
+    toast("Failed to sync feeds to Drive");
+  }
+}
+
+async function addFeed() {
   const url  = document.getElementById('feedUrlInput').value.trim();
   const name = document.getElementById('feedNameInput').value.trim() || extractName(url);
   if (!url) return toast('Enter a feed URL');
@@ -797,25 +885,29 @@ function addFeed() {
   if (feeds.find(f => f.url === url)) return toast('Feed already added');
 
   feeds.push({ url, name, id: Date.now().toString() });
-  localStorage.setItem(STORAGE.FEEDS, JSON.stringify(feeds));
+  
   document.getElementById('feedUrlInput').value = '';
   document.getElementById('feedNameInput').value = '';
   renderFeedList();
   renderFeedFilter();
   fetchFeed(feeds[feeds.length - 1]);
-  toast(`Added: ${name}`);
+  toast(`Added: ${name}. Syncing...`);
+  
+  await syncFeedsToDrive(); // Push to drive
 }
 
-function removeFeed(id) {
+async function removeFeed(id) {
   feeds = feeds.filter(f => f.id !== id);
-  localStorage.setItem(STORAGE.FEEDS, JSON.stringify(feeds));
   articles = articles.filter(a => a.feedId !== id);
   saveArticles();
   renderFeedList();
   renderFeedFilter();
   renderArticles();
-  toast('Feed removed');
+  toast('Feed removed. Syncing...');
+  
+  await syncFeedsToDrive(); // Push to drive
 }
+
 
 function extractName(url) {
   try {
