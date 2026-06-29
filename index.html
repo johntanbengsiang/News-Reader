@@ -355,7 +355,7 @@
     flex: 1;
   }
   .summary-body {
-    background: white;
+    background: var(--paper-2);
     border: 1px solid var(--rule);
     border-radius: var(--radius);
     padding: 24px;
@@ -447,13 +447,31 @@
     padding: 7px 10px;
     border: 1px solid var(--rule);
     border-radius: var(--radius);
-    background: white;
+    background: var(--paper-2);
     color: var(--ink);
     outline: none;
+    -webkit-appearance: none;
+    appearance: none;
   }
+  .feed-input::placeholder { color: var(--ink-4); }
   .feed-input:focus { border-color: var(--accent); }
   .feed-name-input {
     width: 140px;
+  }
+  /* native <select> dropdown popup styling — some mobile WebViews ignore
+     inherited color/background on the popup itself unless set directly */
+  select.feed-input,
+  select.feed-select {
+    color-scheme: light;
+  }
+  html[data-theme="dark"] select.feed-input,
+  html[data-theme="dark"] select.feed-select {
+    color-scheme: dark;
+  }
+  select.feed-input option,
+  select.feed-select option {
+    background: var(--paper-2);
+    color: var(--ink);
   }
 
   .feed-list { list-style: none; }
@@ -511,14 +529,39 @@
     padding: 10px;
     border: 1px solid var(--rule);
     border-radius: var(--radius);
-    background: white;
+    background: var(--paper-2);
     color: var(--ink);
     resize: vertical;
     min-height: 100px;
     line-height: 1.5;
     outline: none;
   }
+  .prompt-textarea::placeholder { color: var(--ink-4); }
   .prompt-textarea:focus { border-color: var(--accent); }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--rule);
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: none;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: none;
+  }
 
   /* ── LOADING ───────────────────────────────────────────────── */
   .spinner {
