@@ -1222,11 +1222,13 @@ async function forceFetchNow() {
 // ── POLLING (re-pulls the backend's cached JSON, doesn't fetch RSS itself) ──
 function startPolling() {
   if (pollTimer) clearInterval(pollTimer);
-  const minutes = parseInt(localStorage.getItem(STORAGE.INTERVAL) || '15');
+  
+  // Changed the interval to a hardcoded 60000ms (1 minute)
   pollTimer = setInterval(async () => {
+    console.log("Checking for new articles in background...");
     await loadFromBackend();
     renderArticles();
-  }, minutes * 60 * 1000);
+  }, 60000); 
 }
 
 // ── STATUS ────────────────────────────────────────────────────────
