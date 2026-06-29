@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+  // Runs before first paint to avoid a flash of the wrong theme.
+  // Defaults to dark (AMOLED) unless the user previously chose light.
+  (function() {
+    var saved = localStorage.getItem('dispatch_theme');
+    var theme = saved === 'light' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+  })();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dispatch — Personal News Reader</title>
@@ -21,10 +30,35 @@
     --read-ink:  #b0aca0;
     --cluster:   #e8f4f0;    /* teal tint for grouped articles */
     --cluster-b: #2e7d6f;
+    --error-bg:  #fbe9e7;
     --radius:    3px;
     --mono: 'IBM Plex Mono', 'Consolas', monospace;
     --sans: 'Inter', 'Helvetica Neue', Arial, sans-serif;
     --serif: 'Georgia', 'Times New Roman', serif;
+  }
+
+  /* AMOLED dark theme — true black (#000) base so OLED pixels switch fully
+     off rather than glowing dark-gray. Toggle via <html data-theme="dark">. */
+  html[data-theme="dark"] {
+    --ink:       #f2f2f0;
+    --ink-2:     #cfcfca;
+    --ink-3:     #93938c;
+    --ink-4:     #5e5e58;
+    --paper:     #000000;
+    --paper-2:   #0a0a0a;
+    --paper-3:   #131313;
+    --rule:      #232323;
+    --accent:    #ff5b45;    /* brighter red for AMOLED contrast */
+    --accent-2:  #ff8770;
+    --read-bg:   #050505;
+    --read-ink:  #4a4a46;
+    --cluster:   #07211c;    /* deep teal tint for grouped articles */
+    --cluster-b: #2fcdb0;
+    --error-bg:  #2a0e0a;
+  }
+  html[data-theme="dark"] img,
+  html[data-theme="dark"] .masthead-title span {
+    filter: none;
   }
 
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap');
@@ -76,6 +110,23 @@
     color: var(--ink-3);
     font-family: var(--mono);
   }
+  .theme-toggle {
+    margin-left: 4px;
+    width: 22px;
+    height: 22px;
+    border: 1px solid var(--rule);
+    border-radius: 50%;
+    background: var(--paper-2);
+    color: var(--ink-3);
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s;
+  }
+  .theme-toggle:hover { background: var(--cluster); color: var(--cluster-b); }
   .status-dot {
     width: 7px; height: 7px;
     border-radius: 50%;
@@ -263,7 +314,7 @@
     display: grid;
     grid-template-columns: 1fr auto;
     padding: 8px 12px;
-    border-bottom: 1px solid rgba(0,0,0,0.06);
+    border-bottom: 1px solid var(--rule);
     cursor: pointer;
     gap: 8px;
     transition: background 0.1s;
@@ -530,7 +581,7 @@
     display: none;
   }
   .article-summary-panel.open { display: block; }
-  .article-summary-panel.error { background: #fbe9e7; border-left-color: var(--accent); color: var(--accent-2); }
+  .article-summary-panel.error { background: var(--error-bg); border-left-color: var(--accent); color: var(--accent-2); }
 
   /* ── RESPONSIVE ─────────────────────────────────────────────── */
   @media (max-width: 600px) {
@@ -552,6 +603,7 @@
   <div class="masthead-status">
     <div class="status-dot" id="statusDot"></div>
     <span id="statusText">idle</span>
+    <button class="theme-toggle" id="themeToggle" title="Toggle dark/light theme">◐</button>
   </div>
 </header>
 
@@ -714,6 +766,7 @@ const articleSummaries = {}; // id -> { text, loading, error }
 // ── INIT ─────────────────────────────────────────────────────────
 async function init() {
   loadLocalPrefs();
+  syncThemeIcon();
   renderMastheadDate();
   attachEventListeners();
   updateIntervalDisplay();
@@ -757,7 +810,7 @@ function renderFeedErrorBanner() {
 
   const banner = document.createElement('div');
   banner.id = 'feedErrorBanner';
-  banner.style.cssText = 'margin:8px 16px 0;padding:8px 12px;background:#fbe9e7;border-left:2px solid var(--accent);' +
+  banner.style.cssText = 'margin:8px 16px 0;padding:8px 12px;background:var(--error-bg);border-left:2px solid var(--accent);' +
     'border-radius:var(--radius);font-size:11.5px;color:var(--accent-2);line-height:1.5;';
   banner.innerHTML = `<strong>${fetchErrors.length} feed${fetchErrors.length > 1 ? 's' : ''} failed last fetch:</strong> ` +
     fetchErrors.map(e => `${esc(e.feedName)} (${esc(e.error.slice(0, 80))})`).join(' · ');
@@ -792,6 +845,9 @@ function saveRead() {
 
 // ── EVENT LISTENERS ────────────────────────────────────────────────
 function attachEventListeners() {
+  // theme toggle
+  document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+
   // tab switch
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1300,6 +1356,21 @@ function markdownToHtml(md) {
       return `<p>${p.replace(/\n/g, ' ')}</p>`;
     })
     .join('\n');
+}
+
+// ── MODALS ────────────────────────────────────────────────────────
+// ── THEME ─────────────────────────────────────────────────────────
+function toggleTheme() {
+  const html = document.documentElement;
+  const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  localStorage.setItem('dispatch_theme', next);
+  syncThemeIcon();
+}
+
+function syncThemeIcon() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.getElementById('themeToggle').textContent = isDark ? '☾' : '☀';
 }
 
 // ── MODALS ────────────────────────────────────────────────────────
