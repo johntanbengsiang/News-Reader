@@ -883,6 +883,39 @@ async function init() {
   renderFeedList();
   renderArticles();
   startPolling();
+
+  // Kick off a silent background RSS fetch on every page load, rather than
+  // waiting for the next cron tick (which may be many minutes away — this
+  // was the main cause of articles looking stale right after opening the
+  // app). The cached data above renders immediately for a fast perceived
+  // load; this just refreshes it in the background a moment later.
+  silentBackgroundFetch();
+}
+
+// Same as forceFetchNow but without disabling buttons / showing the loud
+// "Fetching…" label — just a quiet refresh that updates the list if new
+// articles come in.
+async function silentBackgroundFetch() {
+  if (isFetching || !feeds.length) return;
+  isFetching = true;
+  setStatus('fetching');
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'forceFetch' })
+    });
+    const data = await res.json();
+    if (data.success) {
+      await loadFromBackend();
+      renderArticles();
+      if (data.added > 0) toast(`${data.added} new article${data.added > 1 ? 's' : ''}`);
+    }
+  } catch (e) {
+    console.error('Background fetch failed:', e);
+  }
+  isFetching = false;
+  setStatus('live');
 }
 
 // ── LOAD FROM BACKEND (Apps Script) ───────────────────────────────
@@ -1222,16 +1255,29 @@ async function forceFetchNow() {
   btn.textContent = '⚡ Fetch now';
 }
 
-// ── POLLING (re-pulls the backend's cached JSON, doesn't fetch RSS itself) ──
+// ── POLLING ───────────────────────────────────────────────────────
+// Every 60s: re-pull whatever's cached in KV (cheap, picks up anything the
+// cron trigger or another tab fetched).
+// Every 5 minutes: also actively trigger a real RSS fetch, so freshness
+// doesn't depend entirely on however the Cloudflare cron trigger is
+// configured in the dashboard (which may be set to a longer interval, or
+// not configured at all).
+let pollTickCount = 0;
 function startPolling() {
   if (pollTimer) clearInterval(pollTimer);
-  
-  // Changed the interval to a hardcoded 60000ms (1 minute)
+  pollTickCount = 0;
+
   pollTimer = setInterval(async () => {
-    console.log("Checking for new articles in background...");
-    await loadFromBackend();
-    renderArticles();
-  }, 60000); 
+    pollTickCount++;
+    if (pollTickCount % 5 === 0) {
+      // Every 5th tick (~5 minutes): actively fetch fresh RSS
+      silentBackgroundFetch();
+    } else {
+      // Otherwise just re-pull whatever's already cached
+      await loadFromBackend();
+      renderArticles();
+    }
+  }, 60000);
 }
 
 // ── STATUS ────────────────────────────────────────────────────────
