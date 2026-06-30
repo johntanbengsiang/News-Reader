@@ -1051,12 +1051,12 @@ function renderLastFetchInfo() {
 }
 
 // ── FEED MANAGEMENT ───────────────────────────────────────────────
-async function syncFeedsToBackend() {
+async function syncFeedsToBackend(confirmClear) {
   try {
     const res = await fetch(GAS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // text/plain avoids CORS preflight
-      body: JSON.stringify({ action: 'updateFeeds', feeds: feeds })
+      body: JSON.stringify({ action: 'updateFeeds', feeds: feeds, confirmClear: !!confirmClear })
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Unknown error');
@@ -1146,7 +1146,10 @@ async function removeFeed(id) {
   renderArticles();
   toast('Feed removed. Syncing...');
 
-  await syncFeedsToBackend();
+  // confirmClear:true — this is an explicit user action (clicking "×" on a
+  // feed), so if it happens to be the last feed, the resulting empty array
+  // should be honoured rather than rejected by the backend's safety guard.
+  await syncFeedsToBackend(true);
 }
 
 function extractName(url) {
