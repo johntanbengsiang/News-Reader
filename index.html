@@ -678,6 +678,135 @@
     .summary-pane { padding: 16px 14px 40px; }
     .tabs { padding: 0 14px; }
   }
+  /* ── REIT PANE ───────────────────────────────────────────────── */
+  .reit-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 24px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper-2);
+    flex-wrap: wrap;
+  }
+  .reit-last-fetch {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    flex: 1;
+  }
+  .reit-body {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 24px 60px;
+  }
+
+  /* REIT section = one block per REIT fund */
+  .reit-section {
+    margin-top: 24px;
+  }
+  .reit-section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 0;
+    position: sticky;
+    top: 90px;
+    background: var(--paper);
+    z-index: 4;
+  }
+  .dark .reit-section-header { background: var(--paper); }
+  .reit-section-name {
+    font-family: 'Playfair Display', var(--serif);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .reit-section-count {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-4);
+  }
+  .reit-section-disabled {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-4);
+    padding: 8px 0;
+    font-style: italic;
+  }
+
+  /* Individual filing row */
+  .reit-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--rule);
+    align-items: start;
+    cursor: pointer;
+    transition: background 0.1s;
+    text-decoration: none;
+  }
+  .reit-row:hover {
+    background: var(--paper-2);
+    margin: 0 -24px;
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+  .reit-row.read .reit-title,
+  .reit-row.read .reit-meta { color: var(--read-ink); }
+  .reit-row.read { background: var(--read-bg); }
+
+  /* Acquisition flag — the key feature */
+  .reit-row.acquisition {
+    border-left: 3px solid var(--accent);
+    padding-left: 10px;
+  }
+  .reit-row.acquisition:hover { padding-left: 10px; }
+  .reit-row.acquisition .reit-title { color: var(--accent); font-weight: 600; }
+  .acquisition-badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    background: var(--accent);
+    color: white;
+    padding: 1px 5px;
+    border-radius: 2px;
+    margin-left: 6px;
+    vertical-align: middle;
+    flex-shrink: 0;
+  }
+  .reit-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink);
+    line-height: 1.4;
+    margin-bottom: 3px;
+  }
+  .reit-meta {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-3);
+  }
+  .reit-time {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-4);
+    white-space: nowrap;
+    padding-top: 2px;
+    flex-shrink: 0;
+  }
+  .reit-empty {
+    font-size: 12px;
+    color: var(--ink-4);
+    font-family: var(--mono);
+    padding: 10px 0;
+  }
+
 </style>
 </head>
 <body>
@@ -697,6 +826,7 @@
 <nav class="tabs">
   <button class="tab-btn active" data-tab="feed">Feed</button>
   <button class="tab-btn" data-tab="summary">Summary</button>
+  <button class="tab-btn" data-tab="reits">REITs</button>
 </nav>
 
 <!-- ── FEED PANE ──────────────────────────────────────────────── -->
@@ -741,6 +871,23 @@
       </div>
     </div>
     <div class="summary-meta" id="summaryMeta"></div>
+  </div>
+</div>
+
+<!-- ── REIT PANE ───────────────────────────────────────────────── -->
+<div class="pane" id="pane-reits">
+  <div class="reit-toolbar">
+    <span class="reit-last-fetch" id="reitLastFetch"></span>
+    <button class="toolbar-btn" id="reitFetchBtn">⚡ Fetch now</button>
+    <span class="article-count" id="reitCount"></span>
+  </div>
+
+  <!-- Per-REIT sections will be injected here -->
+  <div class="reit-body" id="reitBody">
+    <div class="empty-state">
+      <div class="empty-state-icon">🏢</div>
+      <h3>Loading REIT filings…</h3>
+    </div>
   </div>
 </div>
 
@@ -1631,6 +1778,158 @@ document.addEventListener('DOMContentLoaded', async () => {
   } catch (err) {
     console.error('Failed during boot:', err);
   }
+});
+
+// ── REIT FILINGS ──────────────────────────────────────────────────────
+// State
+let reitArticles = [];
+let reitFeeds    = [];
+let reitReadSet  = new Set(JSON.parse(localStorage.getItem('dispatch_reit_read') || '[]'));
+let reitFetching = false;
+
+function saveReitRead() {
+  localStorage.setItem('dispatch_reit_read', JSON.stringify([...reitReadSet]));
+}
+
+// Load from Worker on tab open (lazy — only when REIT tab is first clicked)
+let reitLoaded = false;
+async function ensureReitLoaded() {
+  if (reitLoaded) return;
+  reitLoaded = true;
+  await loadReitData();
+  // kick off a fresh fetch in background immediately after first load
+  silentReitFetch();
+}
+
+async function loadReitData() {
+  try {
+    const res  = await fetch(GAS_URL.replace(/\/$/, '') + '?tab=reits');
+    const data = await res.json();
+    reitFeeds    = data.feeds    || [];
+    reitArticles = data.articles || [];
+    const ts = data.lastFetch ? relativeTime(new Date(data.lastFetch).getTime()) : 'never';
+    document.getElementById('reitLastFetch').textContent = `Server last fetched ${ts}`;
+  } catch (e) {
+    document.getElementById('reitLastFetch').textContent = 'Failed to load';
+    console.error('REIT load failed:', e);
+  }
+}
+
+async function silentReitFetch() {
+  if (reitFetching) return;
+  reitFetching = true;
+  const btn = document.getElementById('reitFetchBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Fetching…'; }
+  try {
+    const res  = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'forceFetchReit' }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      await loadReitData();
+      renderReitPane();
+      if (data.added > 0) toast(`${data.added} new REIT filing${data.added > 1 ? 's' : ''}`);
+    }
+  } catch (e) {
+    console.error('REIT fetch failed:', e);
+  }
+  reitFetching = false;
+  if (btn) { btn.disabled = false; btn.textContent = '⚡ Fetch now'; }
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────
+function renderReitPane() {
+  const body = document.getElementById('reitBody');
+  if (!body) return;
+
+  // Count only active (non-acquisition flagged) vs acquisition filings
+  const acqCount = reitArticles.filter(a => a.acquisition).length;
+  const total    = reitArticles.length;
+  document.getElementById('reitCount').textContent =
+    `${total} filing${total !== 1 ? 's' : ''}${acqCount > 0 ? ` · ${acqCount} acquisition${acqCount > 1 ? 's' : ''}` : ''}`;
+
+  if (!total && reitFeeds.filter(f => f.url).length === 0) {
+    body.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🏢</div>
+      <h3>No REIT feeds configured</h3><p>Add feed URLs in the worker.js REIT_FEEDS list.</p></div>`;
+    return;
+  }
+
+  // Group articles by feed, sorted newest first within each group
+  const byFeed = {};
+  for (const f of reitFeeds) byFeed[f.id] = [];
+  for (const a of reitArticles) {
+    if (byFeed[a.feedId]) byFeed[a.feedId].push(a);
+  }
+
+  // Sort each group: acquisitions first, then by date
+  for (const id in byFeed) {
+    byFeed[id].sort((a, b) => {
+      if (a.acquisition !== b.acquisition) return a.acquisition ? -1 : 1;
+      return b.timestamp - a.timestamp;
+    });
+  }
+
+  body.innerHTML = reitFeeds.map(feed => renderReitSection(feed, byFeed[feed.id] || [])).join('');
+}
+
+function renderReitSection(feed, articles) {
+  const isDisabled = !feed.url;
+  return `
+  <div class="reit-section">
+    <div class="reit-section-header">
+      <span class="reit-section-name">${esc(feed.name)}</span>
+      ${isDisabled
+        ? '<span class="reit-section-count">no feed configured</span>'
+        : `<span class="reit-section-count">${articles.length} filing${articles.length !== 1 ? 's' : ''}</span>`
+      }
+    </div>
+    ${isDisabled
+      ? '<div class="reit-section-disabled">Feed URL not yet configured — add it to REIT_FEEDS in worker.js</div>'
+      : articles.length === 0
+        ? '<div class="reit-empty">No filings found yet — click ⚡ Fetch now</div>'
+        : articles.map(a => renderReitRow(a)).join('')
+    }
+  </div>`;
+}
+
+function renderReitRow(a) {
+  const read    = reitReadSet.has(a.id);
+  const isAcq   = a.acquisition;
+  const classes = ['reit-row', read ? 'read' : '', isAcq ? 'acquisition' : ''].filter(Boolean).join(' ');
+
+  return `<div class="${classes}" onclick="openReitArticle('${a.id}','${esc(a.link)}')">
+    <div>
+      <div class="reit-title">
+        ${esc(a.title)}${isAcq ? '<span class="acquisition-badge">Acquisition</span>' : ''}
+      </div>
+      <div class="reit-meta">${esc(a.description ? a.description.slice(0, 120) : '')}</div>
+    </div>
+    <div class="reit-time">${relativeTime(a.timestamp)}</div>
+  </div>`;
+}
+
+function openReitArticle(id, url) {
+  reitReadSet.add(id);
+  saveReitRead();
+  renderReitPane();
+  if (url && url !== 'undefined') window.open(url, '_blank', 'noopener');
+}
+
+// Hook REIT tab activation into the existing tab-switch listener
+// (patch after init runs, since init registers the tab listener too)
+const _origTabSetup = document.querySelectorAll.bind(document);
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.tab-btn');
+  if (btn && btn.dataset.tab === 'reits') {
+    ensureReitLoaded().then(renderReitPane);
+  }
+});
+
+// Wire the fetch button
+document.addEventListener('click', e => {
+  if (e.target.id === 'reitFetchBtn') silentReitFetch();
 });
 </script>
 </body>
