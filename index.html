@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
 <script>
-  // Runs before first paint to avoid a flash of the wrong theme.
-  // Defaults to dark (AMOLED) unless the user previously chose light.
+  // Set theme before first paint to avoid flash of wrong theme.
   (function() {
     var saved = localStorage.getItem('dispatch_theme');
     var theme = saved === 'light' ? 'light' : 'dark';
@@ -24,11 +23,11 @@
     --paper-2:   #f0efeb;
     --paper-3:   #e4e2db;
     --rule:      #d6d3ca;
-    --accent:    #c0392b;    /* telegraph red */
+    --accent:    #c0392b;
     --accent-2:  #922b21;
     --read-bg:   #f5f4f0;
     --read-ink:  #b0aca0;
-    --cluster:   #e8f4f0;    /* teal tint for grouped articles */
+    --cluster:   #e8f4f0;
     --cluster-b: #2e7d6f;
     --error-bg:  #fbe9e7;
     --toast-bg:  #1a1a1a;
@@ -38,9 +37,6 @@
     --sans: 'Inter', 'Helvetica Neue', Arial, sans-serif;
     --serif: 'Georgia', 'Times New Roman', serif;
   }
-
-  /* AMOLED dark theme — true black (#000) base so OLED pixels switch fully
-     off rather than glowing dark-gray. Toggle via <html data-theme="dark">. */
   html[data-theme="dark"] {
     --ink:       #f2f2f0;
     --ink-2:     #cfcfca;
@@ -50,25 +46,18 @@
     --paper-2:   #0a0a0a;
     --paper-3:   #131313;
     --rule:      #232323;
-    --accent:    #ff5b45;    /* brighter red for AMOLED contrast */
+    --accent:    #ff5b45;
     --accent-2:  #ff8770;
     --read-bg:   #050505;
     --read-ink:  #4a4a46;
-    --cluster:   #07211c;    /* deep teal tint for grouped articles */
+    --cluster:   #07211c;
     --cluster-b: #2fcdb0;
     --error-bg:  #2a0e0a;
     --toast-bg:  #e8e8e5;
     --toast-text: #161616;
   }
-  html[data-theme="dark"] img,
-  html[data-theme="dark"] .masthead-title span {
-    filter: none;
-  }
-
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap');
-
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
   body {
     font-family: var(--sans);
     background: var(--paper);
@@ -77,7 +66,6 @@
     line-height: 1.5;
     min-height: 100vh;
   }
-
   /* ── MASTHEAD ──────────────────────────────────────────────── */
   .masthead {
     border-bottom: 3px double var(--ink);
@@ -128,9 +116,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.15s, color 0.15s;
   }
-  .theme-toggle:hover { background: var(--cluster); color: var(--cluster-b); }
   .status-dot {
     width: 7px; height: 7px;
     border-radius: 50%;
@@ -140,7 +126,6 @@
   .status-dot.live { background: #27ae60; }
   .status-dot.fetching { background: #f39c12; animation: pulse 1s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-
   /* ── TABS ──────────────────────────────────────────────────── */
   .tabs {
     display: flex;
@@ -161,18 +146,14 @@
     border-bottom: 2px solid transparent;
     cursor: pointer;
     margin-bottom: -1px;
-    transition: color 0.15s, border-color 0.15s;
   }
   .tab-btn:hover { color: var(--ink); }
   .tab-btn.active {
     color: var(--accent);
     border-bottom-color: var(--accent);
   }
-
-  /* ── LAYOUT ────────────────────────────────────────────────── */
   .pane { display: none; }
   .pane.active { display: block; }
-
   /* ── FEED TOOLBAR ──────────────────────────────────────────── */
   .feed-toolbar {
     display: flex;
@@ -203,49 +184,104 @@
     color: var(--ink-2);
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.15s, color 0.15s;
   }
   .toolbar-btn:hover { background: var(--paper-3); }
   .toolbar-btn.danger { border-color: var(--accent); color: var(--accent); }
   .toolbar-btn.danger:hover { background: var(--accent); color: white; }
   .toolbar-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
   .toolbar-btn.primary:hover { background: var(--accent-2); }
+  .toolbar-btn.icon-only {
+    padding: 5px 9px;
+    font-size: 13px;
+    line-height: 1;
+    min-width: 30px;
+  }
+  .toolbar-btn.icon-only.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
   .article-count {
     margin-left: auto;
     font-family: var(--mono);
     font-size: 11px;
     color: var(--ink-3);
   }
-
+  /* ── DATE FILTER POPOVER ───────────────────────────────────── */
+  .date-popover-wrap { position: relative; display: inline-block; }
+  .date-popover {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 6px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.15);
+    padding: 12px;
+    z-index: 50;
+    min-width: 240px;
+  }
+  .date-popover.open { display: block; }
+  .date-popover label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--ink-4);
+    margin-bottom: 3px;
+    margin-top: 8px;
+  }
+  .date-popover input[type="date"] {
+    width: 100%;
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 5px 8px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--paper-2);
+    color: var(--ink);
+    outline: none;
+  }
+  .date-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--rule);
+  }
+  .date-preset {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 4px 8px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--paper);
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+  .date-popover-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--rule);
+  }
+  .date-popover-actions button { flex: 1; }
   /* ── ARTICLE LIST ──────────────────────────────────────────── */
   .article-list {
     max-width: 900px;
     margin: 0 auto;
     padding: 0 24px 60px;
   }
-
-  .feed-group-header {
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    color: var(--ink-4);
-    padding: 14px 0 6px;
-    border-bottom: 1px solid var(--rule);
-    margin-bottom: 0;
-    position: sticky;
-    top: 115px;
-    background: var(--paper);
-    z-index: 5;
-  }
-
-  /* single article row */
   .article-row {
     display: block;
-    padding: 11px 0 11px;
+    padding: 11px 0;
     border-bottom: 1px solid var(--rule);
     cursor: pointer;
-    transition: background 0.1s;
   }
   .article-row-top {
     display: grid;
@@ -253,13 +289,10 @@
     gap: 8px;
     align-items: start;
   }
-  .article-row:hover { background: var(--paper-2); margin: 0 -24px; padding-left: 24px; padding-right: 24px; }
   .article-row.read .article-title,
   .article-row.read .article-meta,
   .article-row.read .article-description { color: var(--read-ink); }
   .article-row.read { background: var(--read-bg); }
-  .article-row.read:hover { background: var(--paper-3); }
-
   .article-title {
     font-size: 14px;
     font-weight: 500;
@@ -282,65 +315,7 @@
     color: var(--ink-3);
     line-height: 1.5;
     margin-top: 5px;
-    cursor: pointer;
   }
-
-  /* cluster (grouped similar articles) */
-  .cluster-row {
-    border-left: 3px solid var(--cluster-b);
-    background: var(--cluster);
-    margin: 4px 0;
-    border-radius: 0 var(--radius) var(--radius) 0;
-  }
-  .cluster-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 9px 12px;
-    cursor: pointer;
-  }
-  .cluster-label {
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.8px;
-    text-transform: uppercase;
-    color: var(--cluster-b);
-    font-weight: 500;
-    flex-shrink: 0;
-  }
-  .cluster-title {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--ink);
-    flex: 1;
-  }
-  .cluster-toggle {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--cluster-b);
-    flex-shrink: 0;
-  }
-  .cluster-articles {
-    display: none;
-    border-top: 1px solid var(--rule);
-  }
-  .cluster-articles.open { display: block; }
-  .cluster-item {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--rule);
-    cursor: pointer;
-    gap: 8px;
-    transition: background 0.1s;
-  }
-  .cluster-item:last-child { border-bottom: none; }
-  .cluster-item:hover { background: rgba(46,125,111,0.08); }
-  .cluster-item.read .cluster-item-title { color: var(--read-ink); }
-  .cluster-item-title { font-size: 13px; font-weight: 400; color: var(--ink-2); line-height: 1.4; }
-  .cluster-item-meta { font-family: var(--mono); font-size: 10px; color: var(--ink-3); }
-
-  /* empty state */
   .empty-state {
     text-align: center;
     padding: 80px 24px;
@@ -349,8 +324,7 @@
   .empty-state-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
   .empty-state h3 { font-size: 16px; font-weight: 500; margin-bottom: 6px; color: var(--ink-2); }
   .empty-state p { font-size: 13px; max-width: 340px; margin: 0 auto; }
-
-  /* ── SUMMARY TAB ───────────────────────────────────────────── */
+  /* ── SUMMARY ───────────────────────────────────────────────── */
   .summary-pane {
     max-width: 760px;
     margin: 0 auto;
@@ -411,8 +385,7 @@
     color: var(--ink-4);
     text-align: right;
   }
-
-  /* ── SETTINGS MODAL ────────────────────────────────────────── */
+  /* ── MODALS ────────────────────────────────────────────────── */
   .modal-overlay {
     display: none;
     position: fixed; inset: 0;
@@ -451,36 +424,8 @@
   }
   .modal-close:hover { color: var(--ink); }
   .modal-body { padding: 20px; }
-
   .feed-input-row {
     display: flex; gap: 8px; margin-bottom: 14px;
-  }
-  .add-feed-mode-tabs {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 10px;
-  }
-  .add-mode-tab {
-    font-family: var(--mono);
-    font-size: 10.5px;
-    letter-spacing: 0.3px;
-    padding: 5px 10px;
-    border: 1px solid var(--rule);
-    border-radius: var(--radius);
-    background: var(--paper);
-    color: var(--ink-3);
-    cursor: pointer;
-  }
-  .add-mode-tab.active {
-    background: var(--cluster);
-    color: var(--cluster-b);
-    border-color: var(--cluster-b);
-  }
-  .publisher-hint {
-    font-size: 11px;
-    color: var(--ink-4);
-    margin: -6px 0 10px;
-    line-height: 1.5;
   }
   .feed-input {
     flex: 1;
@@ -492,30 +437,9 @@
     background: var(--paper-2);
     color: var(--ink);
     outline: none;
-    -webkit-appearance: none;
-    appearance: none;
   }
-  .feed-input::placeholder { color: var(--ink-4); }
   .feed-input:focus { border-color: var(--accent); }
-  .feed-name-input {
-    width: 140px;
-  }
-  /* native <select> dropdown popup styling — some mobile WebViews ignore
-     inherited color/background on the popup itself unless set directly */
-  select.feed-input,
-  select.feed-select {
-    color-scheme: light;
-  }
-  html[data-theme="dark"] select.feed-input,
-  html[data-theme="dark"] select.feed-select {
-    color-scheme: dark;
-  }
-  select.feed-input option,
-  select.feed-select option {
-    background: var(--paper-2);
-    color: var(--ink);
-  }
-
+  .feed-name-input { width: 140px; }
   .feed-list { list-style: none; }
   .feed-list-item {
     display: flex;
@@ -524,16 +448,6 @@
     padding: 7px 0;
     border-bottom: 1px solid var(--rule);
     font-size: 12px;
-  }
-  .feed-list-item:last-child { border-bottom: none; }
-  .feed-list-url {
-    font-family: var(--mono);
-    color: var(--ink-2);
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 11px;
   }
   .feed-list-name {
     font-weight: 500;
@@ -544,14 +458,21 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .feed-list-url {
+    font-family: var(--mono);
+    color: var(--ink-2);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+  }
   .feed-remove {
     background: none; border: none; cursor: pointer;
     color: var(--ink-4); font-size: 16px; line-height: 1;
     flex-shrink: 0; padding: 2px;
-    transition: color 0.15s;
   }
   .feed-remove:hover { color: var(--accent); }
-
   .modal-section-label {
     font-family: var(--mono);
     font-size: 10px;
@@ -562,8 +483,6 @@
     margin-top: 16px;
   }
   .modal-section-label:first-child { margin-top: 0; }
-
-  /* PROMPT CONFIG */
   .prompt-textarea {
     width: 100%;
     font-family: var(--mono);
@@ -578,33 +497,7 @@
     line-height: 1.5;
     outline: none;
   }
-  .prompt-textarea::placeholder { color: var(--ink-4); }
   .prompt-textarea:focus { border-color: var(--accent); }
-
-  input[type="range"] {
-    -webkit-appearance: none;
-    appearance: none;
-    height: 4px;
-    border-radius: 2px;
-    background: var(--rule);
-    outline: none;
-  }
-  input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 14px; height: 14px;
-    border-radius: 50%;
-    background: var(--accent);
-    cursor: pointer;
-    border: none;
-  }
-  input[type="range"]::-moz-range-thumb {
-    width: 14px; height: 14px;
-    border-radius: 50%;
-    background: var(--accent);
-    cursor: pointer;
-    border: none;
-  }
-
   /* ── LOADING ───────────────────────────────────────────────── */
   .spinner {
     display: inline-block; width: 14px; height: 14px;
@@ -615,7 +508,6 @@
     vertical-align: middle;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-
   /* ── TOAST ─────────────────────────────────────────────────── */
   .toast {
     position: fixed; bottom: 24px; right: 24px;
@@ -628,98 +520,7 @@
     max-width: 280px;
   }
   .toast.show { opacity: 1; transform: translateY(0); }
-
-  /* ── ARTICLE SUMMARIZE BUTTON ─────────────────────────────────── */
-  .article-actions {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 6px;
-    flex-shrink: 0;
-  }
-  .summarize-btn {
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--rule);
-    border-radius: 50%;
-    background: var(--paper);
-    color: var(--ink-3);
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
-  }
-  .summarize-btn.active { background: var(--cluster); color: var(--cluster-b); border-color: var(--cluster-b); }
-  .summarize-btn:hover { background: var(--cluster); color: var(--cluster-b); border-color: var(--cluster-b); }
-  .summarize-btn:disabled { opacity: 0.6; cursor: default; }
-  .summarize-btn .spinner { width: 10px; height: 10px; border-width: 1.5px; margin: 0; }
-
-  .article-summary-panel {
-    margin-top: 8px;
-    padding: 10px 12px;
-    background: var(--cluster);
-    border-left: 2px solid var(--cluster-b);
-    border-radius: var(--radius);
-    font-size: 12.5px;
-    line-height: 1.55;
-    color: var(--ink-2);
-    display: none;
-  }
-  .article-summary-panel.open { display: block; }
-  .article-summary-panel.error { background: var(--error-bg); border-left-color: var(--accent); color: var(--accent-2); }
-
-  /* ── RESPONSIVE ─────────────────────────────────────────────── */
-  @media (max-width: 600px) {
-    .masthead { padding: 10px 14px; }
-    .masthead-title { font-size: 20px; }
-    .feed-toolbar { padding: 8px 14px; }
-    .article-list { padding: 0 14px 40px; }
-    .summary-pane { padding: 16px 14px 40px; }
-    .tabs { padding: 0 14px; }
-  }
-  /* ── ARCHIVE PANEL ──────────────────────────────────────────────── */
-  .archive-bar {
-    display: flex; align-items: center; gap: 8px;
-    padding: 8px 24px; border-bottom: 1px solid var(--rule);
-    background: var(--paper-2); flex-wrap: wrap;
-  }
-  .archive-search {
-    flex: 1; min-width: 160px;
-    font-family: var(--mono); font-size: 12px;
-    padding: 5px 10px; border: 1px solid var(--rule);
-    border-radius: var(--radius); background: var(--paper);
-    color: var(--ink); outline: none;
-  }
-  .archive-search:focus { border-color: var(--accent); }
-  #archivePanel {
-    display: none; border-top: 2px solid var(--rule);
-  }
-  #archivePanel.open { display: block; }
-  .archive-list { max-width: 900px; margin: 0 auto; padding: 0 24px 40px; }
-  .archive-month-header {
-    font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px;
-    text-transform: uppercase; color: var(--ink-4);
-    padding: 14px 0 6px; border-bottom: 1px solid var(--rule); margin-bottom: 0;
-    position: sticky; top: 115px; background: var(--paper); z-index: 3;
-  }
-  .archive-row {
-    display: grid; grid-template-columns: 1fr auto;
-    gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--rule);
-    opacity: 0.65; cursor: pointer; transition: opacity 0.15s;
-  }
-  .archive-row:hover { opacity: 1; background: var(--paper-2);
-    margin: 0 -24px; padding-left: 24px; padding-right: 24px; }
-  .archive-title { font-size: 13px; font-weight: 400; color: var(--ink-2); line-height: 1.4; }
-  .archive-meta  { font-family: var(--mono); font-size: 10px; color: var(--ink-3); margin-top: 2px; }
-  .archive-time  { font-family: var(--mono); font-size: 10px; color: var(--ink-4);
-    padding-top: 3px; white-space: nowrap; }
-  .archive-empty { text-align: center; padding: 40px 24px; color: var(--ink-4);
-    font-size: 13px; }
-  .archive-pagination { display: flex; gap: 8px; justify-content: center;
-    padding: 16px 0 40px; }
-
-  /* ── REIT PANE ───────────────────────────────────────────────── */
+  /* ── REIT PANE ─────────────────────────────────────────────── */
   .reit-toolbar {
     display: flex;
     align-items: center;
@@ -740,11 +541,7 @@
     margin: 0 auto;
     padding: 0 24px 60px;
   }
-
-  /* REIT section = one block per REIT fund */
-  .reit-section {
-    margin-top: 24px;
-  }
+  .reit-section { margin-top: 24px; }
   .reit-section-header {
     display: flex;
     align-items: baseline;
@@ -757,7 +554,6 @@
     background: var(--paper);
     z-index: 4;
   }
-  .dark .reit-section-header { background: var(--paper); }
   .reit-section-name {
     font-family: 'Playfair Display', var(--serif);
     font-size: 16px;
@@ -776,8 +572,6 @@
     padding: 8px 0;
     font-style: italic;
   }
-
-  /* Individual filing row */
   .reit-row {
     display: grid;
     grid-template-columns: 1fr auto;
@@ -786,41 +580,31 @@
     border-bottom: 1px solid var(--rule);
     align-items: start;
     cursor: pointer;
-    transition: background 0.1s;
-    text-decoration: none;
-  }
-  .reit-row:hover {
-    background: var(--paper-2);
-    margin: 0 -24px;
-    padding-left: 24px;
-    padding-right: 24px;
   }
   .reit-row.read .reit-title,
   .reit-row.read .reit-meta { color: var(--read-ink); }
   .reit-row.read { background: var(--read-bg); }
-
-  /* Acquisition flag — the key feature */
   .reit-row.acquisition {
     border-left: 3px solid var(--accent);
     padding-left: 10px;
   }
-  .reit-row.acquisition:hover { padding-left: 10px; }
   .reit-row.acquisition .reit-title { color: var(--accent); font-weight: 600; }
   .acquisition-badge {
     display: inline-block;
     font-family: var(--mono);
-    font-size: 9px;
-    font-weight: 600;
+    font-size: 9.5px;
+    font-weight: 700;
     letter-spacing: 0.8px;
     text-transform: uppercase;
     background: var(--accent);
     color: white;
-    padding: 1px 5px;
+    padding: 2px 7px;
     border-radius: 2px;
     margin-left: 6px;
     vertical-align: middle;
     flex-shrink: 0;
   }
+  .acquisition-badge.disposal { background: var(--cluster-b); }
   .reit-title {
     font-size: 13px;
     font-weight: 500;
@@ -847,86 +631,7 @@
     font-family: var(--mono);
     padding: 10px 0;
   }
-  /* ── COMPACT ICON BUTTON (⚡ fetch, 📅 date) ──────────────────── */
-  .toolbar-btn.icon-only {
-    padding: 5px 9px;
-    font-size: 13px;
-    line-height: 1;
-    min-width: 30px;
-  }
-  .toolbar-btn.icon-only.active {
-    background: var(--accent);
-    color: white;
-    border-color: var(--accent);
-  }
-  /* ── DATE FILTER POPOVER ──────────────────────────────────────── */
-  .date-popover-wrap { position: relative; display: inline-block; }
-  .date-popover {
-    display: none;
-    position: absolute;
-    top: 100%;
-    left: 0;
-    margin-top: 6px;
-    background: var(--paper);
-    border: 1px solid var(--rule);
-    border-radius: var(--radius);
-    box-shadow: 0 6px 24px rgba(0,0,0,0.15);
-    padding: 12px;
-    z-index: 50;
-    min-width: 240px;
-  }
-  .date-popover.open { display: block; }
-  .date-popover label {
-    display: block;
-    font-family: var(--mono);
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: var(--ink-4);
-    margin-bottom: 3px;
-    margin-top: 8px;
-  }
-  .date-popover label:first-child { margin-top: 0; }
-  .date-popover input[type="date"] {
-    width: 100%;
-    font-family: var(--mono);
-    font-size: 12px;
-    padding: 5px 8px;
-    border: 1px solid var(--rule);
-    border-radius: var(--radius);
-    background: var(--paper-2);
-    color: var(--ink);
-    outline: none;
-  }
-  .date-popover input[type="date"]:focus { border-color: var(--accent); }
-  .date-presets {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid var(--rule);
-  }
-  .date-preset {
-    font-family: var(--mono);
-    font-size: 10px;
-    padding: 4px 8px;
-    border: 1px solid var(--rule);
-    border-radius: var(--radius);
-    background: var(--paper);
-    color: var(--ink-2);
-    cursor: pointer;
-  }
-  .date-preset:hover { background: var(--paper-3); }
-  .date-popover-actions {
-    display: flex;
-    gap: 6px;
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid var(--rule);
-  }
-  .date-popover-actions button { flex: 1; }
-  /* ── PDF VIEWER MODAL ─────────────────────────────────────────── */
+  /* ── PDF VIEWER MODAL (content-based, NO iframe) ───────────── */
   .pdf-modal-overlay {
     display: none;
     position: fixed; inset: 0;
@@ -984,31 +689,59 @@
   .pdf-modal-body {
     flex: 1;
     background: var(--paper-2);
-    position: relative;
     overflow: hidden;
+    position: relative;
   }
-  .pdf-modal-iframe {
+  .pdf-modal-content {
     width: 100%;
     height: 100%;
-    border: none;
-    background: white;
+    overflow-y: auto;
+    padding: 24px 28px;
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.65;
   }
-  .pdf-modal-fallback {
-    display: none;
-    position: absolute;
-    inset: 0;
-    padding: 40px 24px;
+  .pdf-loading, .pdf-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     text-align: center;
+    padding: 40px 24px;
+    min-height: 320px;
     color: var(--ink-3);
-    font-size: 13px;
-    line-height: 1.6;
   }
-  .pdf-modal-fallback.show { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
-  .pdf-modal-fallback a {
-    color: var(--accent);
-    font-weight: 500;
+  .pdf-error { display: none; }
+  .pdf-loading.hidden { display: none; }
+  .pdf-error.show { display: flex; }
+  .pdf-translated-body {
+    display: none;
+    white-space: pre-wrap;
+    font-family: var(--sans);
+    color: var(--ink-2);
+  }
+  .pdf-translated-body.show { display: block; }
+  .pdf-translated-body p { margin-bottom: 10px; }
+  .pdf-source-meta {
+    margin-top: 24px;
+    padding-top: 12px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-4);
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
   }
   @media (max-width: 600px) {
+    .masthead { padding: 10px 14px; }
+    .masthead-title { font-size: 20px; }
+    .feed-toolbar { padding: 8px 14px; }
+    .article-list { padding: 0 14px 40px; }
+    .summary-pane { padding: 16px 14px 40px; }
+    .tabs { padding: 0 14px; }
     .pdf-modal-overlay { padding: 0; }
     .pdf-modal { height: 100vh; max-width: none; border-radius: 0; }
     .pdf-modal-title-original { font-size: 12px; }
@@ -1024,7 +757,7 @@
   <div class="masthead-status">
     <div class="status-dot" id="statusDot"></div>
     <span id="statusText">idle</span>
-    <button class="theme-toggle" id="themeToggle" title="Toggle dark/light theme">◐</button>
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme">◐</button>
   </div>
 </header>
 
@@ -1035,7 +768,7 @@
   <button class="tab-btn" data-tab="reits">REITs</button>
 </nav>
 
-<!-- ── FEED PANE ──────────────────────────────────────────────── -->
+<!-- FEED PANE -->
 <div class="pane active" id="pane-feed">
   <div class="feed-toolbar">
     <select class="feed-select" id="feedFilter">
@@ -1050,6 +783,10 @@
     <div class="date-popover-wrap">
       <button class="toolbar-btn icon-only" id="dateFilterBtn" title="Filter by date">📅</button>
       <div class="date-popover" id="datePopover">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--ink-3);">Filter by date</div>
+          <button class="modal-close" id="closeDatePopover" style="font-size:14px;padding:0 4px;">✕</button>
+        </div>
         <label for="dateFrom">From</label>
         <input type="date" id="dateFrom">
         <label for="dateTo">To</label>
@@ -1076,12 +813,12 @@
     <div class="empty-state">
       <div class="empty-state-icon">📡</div>
       <h3>No feeds yet</h3>
-      <p>Click <strong>⚙ Feeds</strong> to add RSS feeds and start reading.</p>
+      <p>Click <strong>⚙ Feeds</strong> to add RSS feeds.</p>
     </div>
   </div>
 </div>
 
-<!-- ── SUMMARY PANE ───────────────────────────────────────────── -->
+<!-- SUMMARY PANE -->
 <div class="pane" id="pane-summary">
   <div class="summary-pane">
     <div class="summary-toolbar">
@@ -1092,22 +829,20 @@
     <div class="summary-body" id="summaryBody">
       <div class="summary-placeholder">
         <div class="icon">✦</div>
-        <p>Click <strong>Generate summary</strong> to get an AI digest of your unread articles.</p>
+        <p>Click <strong>Generate summary</strong> for an AI digest of unread articles.</p>
       </div>
     </div>
     <div class="summary-meta" id="summaryMeta"></div>
   </div>
 </div>
 
-<!-- ── REIT PANE ───────────────────────────────────────────────── -->
+<!-- REIT PANE -->
 <div class="pane" id="pane-reits">
   <div class="reit-toolbar">
     <span class="reit-last-fetch" id="reitLastFetch"></span>
     <button class="toolbar-btn" id="reitFetchBtn">⚡ Fetch now</button>
     <span class="article-count" id="reitCount"></span>
   </div>
-
-  <!-- Per-REIT sections will be injected here -->
   <div class="reit-body" id="reitBody">
     <div class="empty-state">
       <div class="empty-state-icon">🏢</div>
@@ -1116,7 +851,7 @@
   </div>
 </div>
 
-<!-- ── SETTINGS MODAL ─────────────────────────────────────────── -->
+<!-- SETTINGS MODAL -->
 <div class="modal-overlay" id="settingsModal">
   <div class="modal">
     <div class="modal-header">
@@ -1125,32 +860,10 @@
     </div>
     <div class="modal-body">
       <div class="modal-section-label">Add RSS Feed</div>
-      <div class="add-feed-mode-tabs">
-        <button class="add-mode-tab active" data-mode="url" id="addModeUrlTab">Direct URL</button>
-        <button class="add-mode-tab" data-mode="publisher" id="addModePublisherTab">Search publisher</button>
-      </div>
-
-      <div class="feed-input-row" id="urlModeRow">
+      <div class="feed-input-row">
         <input class="feed-input feed-name-input" id="feedNameInput" type="text" placeholder="Name (e.g. Reuters)">
-        <input class="feed-input" id="feedUrlInput" type="url" placeholder="https://feeds.reuters.com/reuters/topNews">
+        <input class="feed-input" id="feedUrlInput" type="url" placeholder="https://...">
         <button class="toolbar-btn primary" id="addFeedBtn">Add</button>
-      </div>
-
-      <div id="publisherModeRow" style="display:none;">
-        <div class="feed-input-row">
-          <input class="feed-input" id="publisherDomainInput" type="text" placeholder="Domain or publisher name (e.g. edgeprop.sg)" style="flex:2;">
-          <button class="toolbar-btn primary" id="buildPublisherFeedBtn">Preview</button>
-        </div>
-        <div class="publisher-hint">
-          Builds a Google News feed of articles mentioning this domain/publisher, last 24h, SG/English. Editable before adding.
-        </div>
-        <div id="publisherPreview" style="display:none;">
-          <div class="feed-input-row">
-            <input class="feed-input feed-name-input" id="publisherNameInput" type="text" placeholder="Display name">
-            <input class="feed-input" id="publisherUrlPreview" type="text" readonly style="color:var(--ink-3);">
-            <button class="toolbar-btn primary" id="addPublisherFeedBtn">Add</button>
-          </div>
-        </div>
       </div>
 
       <div class="modal-section-label">Active Feeds</div>
@@ -1158,31 +871,15 @@
         <li style="font-size:12px;color:var(--ink-4);padding:8px 0;">No feeds added yet.</li>
       </ul>
 
-      <div class="modal-section-label" style="margin-top:20px;">Refresh Interval</div>
-      <div class="feed-input-row">
-        <select class="feed-input" id="refreshInterval" style="width:auto;">
-          <option value="5">Every 5 minutes</option>
-          <option value="15" selected>Every 15 minutes</option>
-          <option value="30">Every 30 minutes</option>
-          <option value="60">Every hour</option>
-        </select>
-      </div>
-
-      <div class="modal-section-label">Grouping similarity threshold</div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
-        <input type="range" id="similarityThreshold" min="0.2" max="0.9" step="0.05" value="0.45" style="flex:1;">
-        <span class="feed-input" style="width:42px;text-align:center;padding:4px;" id="thresholdDisplay">0.45</span>
-      </div>
-
-      <div style="display:flex;gap:8px;margin-top:8px;">
-        <button class="toolbar-btn danger" id="clearReadBtn" style="margin-top:0">Clear read history</button>
-        <button class="toolbar-btn danger" id="clearAllBtn" style="margin-top:0">Clear all data</button>
+      <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">
+        <button class="toolbar-btn danger" id="clearReadBtn">Clear read history</button>
+        <button class="toolbar-btn danger" id="clearAllBtn">Clear local data</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ── PROMPT MODAL ────────────────────────────────────────────── -->
+<!-- PROMPT MODAL -->
 <div class="modal-overlay" id="promptModal">
   <div class="modal">
     <div class="modal-header">
@@ -1193,14 +890,14 @@
       <div class="modal-section-label">System prompt for AI summary</div>
       <textarea class="prompt-textarea" id="summaryPromptInput" rows="6"></textarea>
       <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
-        <button class="toolbar-btn" id="resetPromptBtn">Reset to default</button>
+        <button class="toolbar-btn" id="resetPromptBtn">Reset default</button>
         <button class="toolbar-btn primary" id="savePromptBtn">Save</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ── PDF VIEWER MODAL (for REIT filings) ────────────────────────── -->
+<!-- PDF VIEWER MODAL (server-side fetch + Gemini translate, NO iframe) -->
 <div class="pdf-modal-overlay" id="pdfModal">
   <div class="pdf-modal">
     <div class="pdf-modal-header">
@@ -1208,412 +905,88 @@
         <div class="pdf-modal-title-original" id="pdfModalTitle"></div>
         <div class="pdf-modal-title-translated" id="pdfModalTitleTranslated"></div>
       </div>
-      <button class="toolbar-btn icon-only" id="pdfTranslateBtn" title="Translate JP → EN">🌐</button>
+      <button class="toolbar-btn icon-only" id="pdfTranslateBtn" title="Translate title JP → EN">🌐</button>
       <button class="toolbar-btn icon-only" id="pdfOpenExternalBtn" title="Open in new tab">↗</button>
       <button class="modal-close" id="closePdfModal">✕</button>
     </div>
     <div class="pdf-modal-body">
-      <iframe class="pdf-modal-iframe" id="pdfModalIframe" src="about:blank"></iframe>
-      <div class="pdf-modal-fallback" id="pdfModalFallback">
-        <div>This document can't be displayed inline.</div>
-        <a id="pdfModalFallbackLink" href="#" target="_blank" rel="noopener">Open in a new tab →</a>
+      <div class="pdf-modal-content" id="pdfModalContent">
+        <div class="pdf-loading" id="pdfLoading">
+          <div class="spinner" style="width:24px;height:24px;border-width:3px;"></div>
+          <div style="margin-top:12px;font-family:var(--mono);font-size:12px;color:var(--ink-3);">Fetching filing content…</div>
+          <div style="margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--ink-4);">Translating via Gemini</div>
+        </div>
+        <div class="pdf-translated-body" id="pdfTranslatedBody"></div>
+        <div class="pdf-error" id="pdfError">
+          <div style="font-size:22px;margin-bottom:8px;">📄</div>
+          <div style="font-weight:500;color:var(--ink);font-size:14px;">Can't extract content inline</div>
+          <div style="font-size:12px;margin:4px 0 14px;color:var(--ink-3);" id="pdfErrorMsg"></div>
+          <a class="toolbar-btn primary" id="pdfModalFallbackLink" href="#" target="_blank" rel="noopener" style="padding:8px 16px;font-size:12px;text-decoration:none;">Open in a new tab ↗</a>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
-
 <script>
-/* ================================================================
-   DISPATCH — Personal RSS Reader
-   Data source: Google Apps Script (GAS_URL)
-     - GAS fetches all RSS feeds server-side on a time-driven trigger
-       and caches parsed articles + feed list + summary in a Drive JSON file.
-     - The frontend just pulls that pre-fetched JSON. No client-side
-       RSS fetching, no CORS proxy, no per-load delay.
-   Local storage: read status + UI prefs only (article cache lives on the backend)
-   AI Summary (page-level + per-article): Gemini, called from Apps Script
-================================================================ */
+/* ==============================================================
+   DISPATCH — Frontend
+   Backend: Cloudflare Worker at GAS_URL
+   Storage: read-state + prefs in localStorage; everything else server-side
+============================================================== */
 
-// ── CONSTANTS ────────────────────────────────────────────────────
-const GAS_URL = 'https://rss.poopoopeepeepoopoopeepee7.workers.dev/'; // <--- REPLACE with your deployed Apps Script web app URL
+// ── CONFIG ──────────────────────────────────────────────────────
+const GAS_URL = 'https://rss.poopoopeepeepoopoopeepee7.workers.dev/';
+
 const STORAGE = {
   READ:      'dispatch_read',
-  INTERVAL:  'dispatch_interval',
   THRESHOLD: 'dispatch_threshold',
   PROMPT:    'dispatch_prompt',
   SUMMARY:   'dispatch_summary',
 };
 
 const DEFAULT_PROMPT = `You are a senior geopolitical and financial analyst producing a concise daily briefing.
-
 Given a list of news headlines and their sources, write a structured summary covering:
 1. **Top Stories** — the 3-5 most significant developments
-2. **Geopolitics & Macro** — any notable geopolitical shifts, central bank signals, or economic data
+2. **Geopolitics & Macro** — notable shifts, central bank signals, or economic data
 3. **Markets & Business** — key corporate or market-moving news
-4. **To Watch** — emerging stories or trends worth monitoring
+4. **To Watch** — emerging stories worth monitoring
+Be analytical, not just descriptive. Keep to ~400 words.`;
 
-Be analytical, not just descriptive. Cite sources inline where relevant. Keep to ~400 words. Use plain Markdown formatting with **bold** for emphasis.`;
+// ── STATE ──────────────────────────────────────────────────────
+let feeds        = [];
+let articles     = [];
+let readSet      = new Set();
+let lastFetch    = null;
+let fetchErrors  = [];
+let pollTimer    = null;
+let isFetching   = false;
+const articleSummaries = {};
 
-// ── STATE ────────────────────────────────────────────────────────
-let feeds         = [];
-let articles       = [];   // {id, feedId, feedName, title, link, description, pubDate, timestamp}
-let readSet        = new Set();
-let lastFetch       = null;
-let fetchErrors     = [];
-let pollTimer       = null;
-let isFetching      = false;
-const articleSummaries = {}; // id -> { text, loading, error }
-
-// Date filter state — null means "no filter". Values are epoch ms.
 let dateFilterFrom = null;
 let dateFilterTo   = null;
 
-// PDF modal state
 let currentPdfUrl         = null;
 let currentPdfTitle       = null;
 let currentPdfTranslation = null;
+let currentPdfContent     = null;
 
-// ── INIT ─────────────────────────────────────────────────────────
-async function init() {
-  loadLocalPrefs();
-  syncThemeIcon();
-  renderMastheadDate();
-  attachEventListeners();
-  updateIntervalDisplay();
-  await loadFromBackend();
-  renderFeedFilter();
-  renderFeedList();
-  renderArticles();
-  startPolling();
+// REIT state
+let reitArticles = [];
+let reitFeeds    = [];
+let reitReadSet  = new Set(JSON.parse(localStorage.getItem('dispatch_reit_read') || '[]'));
+let reitFetching = false;
+let reitLoaded   = false;
 
-  // Kick off a silent background RSS fetch on every page load, rather than
-  // waiting for the next cron tick (which may be many minutes away — this
-  // was the main cause of articles looking stale right after opening the
-  // app). The cached data above renders immediately for a fast perceived
-  // load; this just refreshes it in the background a moment later.
-  silentBackgroundFetch();
-}
-
-// Same as forceFetchNow but without disabling buttons / showing the loud
-// "Fetching…" label — just a quiet refresh that updates the list if new
-// articles come in.
-async function silentBackgroundFetch() {
-  if (isFetching || !feeds.length) return;
-  isFetching = true;
-  setStatus('fetching');
-  try {
-    const res = await fetch(GAS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'forceFetch' })
-    });
-    const data = await res.json();
-    if (data.success) {
-      await loadFromBackend();
-      renderArticles();
-      if (data.added > 0) toast(`${data.added} new article${data.added > 1 ? 's' : ''}`);
-    }
-  } catch (e) {
-    console.error('Background fetch failed:', e);
-  }
-  isFetching = false;
-  setStatus('live');
-}
-
-// ── LOAD FROM BACKEND ─────────────────────────────────────────────
-async function loadFromBackend() {
-  setStatus('fetching');
-  try {
-    const res = await fetch(GAS_URL);
-    const data = await res.json();
-
-    feeds        = data.feeds || [];
-    articles     = data.articles || [];
-    lastFetch    = data.lastFetch || null;
-    fetchErrors  = data.fetchErrors || [];
-
-    if (data.summary && data.summary.rawText) {
-      const htmlOut = markdownToHtml(data.summary.rawText);
-      renderSummary(htmlOut, data.summary.meta);
-    }
-    setStatus('live');
-  } catch (e) {
-    console.error('Failed to load from backend:', e);
-    toast('Failed to load data from server');
-    setStatus('idle');
-  }
-  renderLastFetchInfo();
-  renderFeedErrorBanner();
-}
-
-function renderFeedErrorBanner() {
-  const existing = document.getElementById('feedErrorBanner');
-  if (existing) existing.remove();
-  if (!fetchErrors.length) return;
-
-  const banner = document.createElement('div');
-  banner.id = 'feedErrorBanner';
-  banner.style.cssText = 'margin:8px 16px 0;padding:8px 12px;background:var(--error-bg);border-left:2px solid var(--accent);' +
-    'border-radius:var(--radius);font-size:11.5px;color:var(--accent-2);line-height:1.5;';
-  banner.innerHTML = `<strong>${fetchErrors.length} feed${fetchErrors.length > 1 ? 's' : ''} failed last fetch:</strong> ` +
-    fetchErrors.map(e => `${esc(e.feedName)} (${esc(e.error.slice(0, 80))})`).join(' · ');
-
-  const toolbar = document.querySelector('.feed-toolbar');
-  if (toolbar) toolbar.insertAdjacentElement('afterend', banner);
-}
-
-// ── LOCAL PREFS (read status, UI settings only) ───────────────────
-function loadLocalPrefs() {
-  try { readSet = new Set(JSON.parse(localStorage.getItem(STORAGE.READ)) || []); } catch (e) { readSet = new Set(); }
-
-  const iv = localStorage.getItem(STORAGE.INTERVAL) || '15';
-  document.getElementById('refreshInterval').value = iv;
-
-  const thr = localStorage.getItem(STORAGE.THRESHOLD) || '0.45';
-  document.getElementById('similarityThreshold').value = thr;
-  document.getElementById('thresholdDisplay').textContent = thr;
-
-  const cached = localStorage.getItem(STORAGE.SUMMARY);
-  if (cached) {
-    try {
-      const s = JSON.parse(cached);
-      renderSummary(s.html, s.meta);
-    } catch (e) {}
-  }
-}
-
-function saveRead() {
-  localStorage.setItem(STORAGE.READ, JSON.stringify([...readSet]));
-  // NOTE: We no longer sync read state to the server for archiving.
-  // Everything now lives in the main feed (with a date-range filter).
-}
-
-// ── SYNC READ STATE TO SERVER ──────────────────────────────────────
-// Sends the full readIds set to the Worker. The Worker uses this to move
-// articles older than 7 days out of the active Gist into monthly archive
-// buckets in the GitHub repo. This is the only trigger for archiving.
-async function syncReadToServer() {
-  if (!readSet.size) return;
-  try {
-    await fetch(GAS_URL, {
-      method:  'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body:    JSON.stringify({ action: 'syncRead', readIds: [...readSet] }),
-    });
-  } catch (e) {
-    console.error('syncRead failed:', e);
-  }
-}
-
-// ── ARCHIVE PANEL ──────────────────────────────────────────────────
-let archivePage = 0;
-
-function toggleArchivePanel() {
-  const panel = document.getElementById('archivePanel');
-  const btn   = document.getElementById('toggleArchiveBtn');
-  const open  = panel.classList.toggle('open');
-  btn.classList.toggle('active', open);
-  if (open && document.getElementById('archiveList').children.length <= 1) {
-    // Populate month selector then load first page automatically
-    populateMonthSelector();
-    loadArchive(0);
-  }
-}
-
-function populateMonthSelector() {
-  const sel = document.getElementById('archiveMonthSelect');
-  sel.innerHTML = '<option value="">Last 6 months</option>';
-  const now = new Date();
-  for (let i = 0; i < 6; i++) {
-    const d   = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
-    const key = `${d.getUTCFullYear()}_${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
-    const lbl = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
-    sel.innerHTML += `<option value="${key}">${lbl}</option>`;
-  }
-  sel.addEventListener('change', () => loadArchive(0));
-}
-
-async function loadArchive(page = 0) {
-  archivePage = page;
-  const list  = document.getElementById('archiveList');
-  const query = document.getElementById('archiveSearch').value.trim();
-  const month = document.getElementById('archiveMonthSelect').value;
-
-  list.innerHTML = '<div class="archive-empty">Loading…</div>';
-  document.getElementById('archivePagination').innerHTML = '';
-
-  const params = new URLSearchParams({ tab: 'archive', page });
-  if (query) params.set('q', query);
-  if (month) params.set('month', month);
-
-  try {
-    const res  = await fetch(GAS_URL + '?' + params.toString());
-    const data = await res.json();
-    renderArchiveList(data);
-  } catch (e) {
-    list.innerHTML = `<div class="archive-empty">Failed to load archive: ${e.message}</div>`;
-  }
-}
-
-function renderArchiveList(data) {
-  const list  = document.getElementById('archiveList');
-  const pager = document.getElementById('archivePagination');
-  const total = document.getElementById('archiveTotalCount');
-
-  total.textContent = data.total ? `${data.total} articles` : '';
-
-  if (!data.articles || !data.articles.length) {
-    list.innerHTML = '<div class="archive-empty">No archived articles yet. Articles are moved here after being read for 7+ days.</div>';
-    pager.innerHTML = '';
-    return;
-  }
-
-  // Group by month for display
-  const byMonth = {};
-  for (const a of data.articles) {
-    const d   = new Date(a.timestamp);
-    const key = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-    if (!byMonth[key]) byMonth[key] = [];
-    byMonth[key].push(a);
-  }
-
-  let html = '';
-  for (const [month, arts] of Object.entries(byMonth)) {
-    html += `<div class="archive-month-header">${month}</div>`;
-    for (const a of arts) {
-      html += `
-        <div class="archive-row" onclick="window.open('${esc(a.link)}','_blank','noopener')">
-          <div>
-            <div class="archive-title">${esc(a.title)}</div>
-            <div class="archive-meta"><span style="color:var(--accent)">${esc(a.feedName)}</span>
-              ${a.description ? ' · ' + esc(a.description.slice(0, 100)) : ''}
-            </div>
-          </div>
-          <div class="archive-time">${relativeTime(a.timestamp)}</div>
-        </div>`;
-    }
-  }
-  list.innerHTML = html;
-
-  // Pagination
-  let pagerHtml = '';
-  if (archivePage > 0) {
-    pagerHtml += `<button class="toolbar-btn" onclick="loadArchive(${archivePage - 1})">← Prev</button>`;
-  }
-  if (data.hasMore) {
-    pagerHtml += `<button class="toolbar-btn" onclick="loadArchive(${archivePage + 1})">Next →</button>`;
-  }
-  pager.innerHTML = pagerHtml;
-}
-
-// ── EVENT LISTENERS ────────────────────────────────────────────────
-function attachEventListeners() {
-  // theme toggle
-  document.getElementById('themeToggle').addEventListener('click', toggleTheme);
-
-  // tab switch
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
-      btn.classList.add('active');
-      document.getElementById(`pane-${btn.dataset.tab}`).classList.add('active');
-    });
-  });
-
-  // toolbar
-  document.getElementById('forceFetchBtn').addEventListener('click', forceFetchNow);
-  document.getElementById('markAllReadBtn').addEventListener('click', markAllRead);
-  document.getElementById('openSettingsBtn').addEventListener('click', () => openModal('settingsModal'));
-  document.getElementById('feedFilter').addEventListener('change', renderArticles);
-  document.getElementById('readFilter').addEventListener('change', renderArticles);
-
-  // date filter popover
-  document.getElementById('dateFilterBtn').addEventListener('click', toggleDatePopover);
-  document.getElementById('applyDateFilter').addEventListener('click', applyDateFilter);
-  document.getElementById('clearDateFilter').addEventListener('click', clearDateFilter);
-  document.querySelectorAll('.date-preset').forEach(btn => {
-    btn.addEventListener('click', () => applyDatePreset(btn.dataset.preset));
-  });
-  document.addEventListener('click', e => {
-    const pop = document.getElementById('datePopover');
-    const btn = document.getElementById('dateFilterBtn');
-    if (!pop.classList.contains('open')) return;
-    if (pop.contains(e.target) || btn.contains(e.target)) return;
-    pop.classList.remove('open');
-  });
-
-  // PDF modal (REIT filings)
-  document.getElementById('closePdfModal').addEventListener('click', closePdfModal);
-  document.getElementById('pdfTranslateBtn').addEventListener('click', translatePdfModalTitle);
-  document.getElementById('pdfOpenExternalBtn').addEventListener('click', () => {
-    if (currentPdfUrl) window.open(currentPdfUrl, '_blank', 'noopener');
-  });
-  document.getElementById('pdfModal').addEventListener('click', e => {
-    if (e.target.id === 'pdfModal') closePdfModal();
-  });
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && document.getElementById('pdfModal').classList.contains('open')) closePdfModal();
-  });
-
-  // settings modal
-  document.getElementById('closeSettings').addEventListener('click', () => closeModal('settingsModal'));
-  document.getElementById('addFeedBtn').addEventListener('click', addFeed);
-  document.getElementById('feedUrlInput').addEventListener('keydown', e => { if (e.key === 'Enter') addFeed(); });
-  document.getElementById('clearReadBtn').addEventListener('click', clearRead);
-  document.getElementById('clearAllBtn').addEventListener('click', clearAll);
-
-  // add-feed mode toggle (direct URL vs publisher search)
-  document.getElementById('addModeUrlTab').addEventListener('click', () => switchAddFeedMode('url'));
-  document.getElementById('addModePublisherTab').addEventListener('click', () => switchAddFeedMode('publisher'));
-  document.getElementById('buildPublisherFeedBtn').addEventListener('click', buildPublisherFeedPreview);
-  document.getElementById('publisherDomainInput').addEventListener('keydown', e => { if (e.key === 'Enter') buildPublisherFeedPreview(); });
-  document.getElementById('addPublisherFeedBtn').addEventListener('click', addPublisherFeed);
-
-  document.getElementById('refreshInterval').addEventListener('change', e => {
-    localStorage.setItem(STORAGE.INTERVAL, e.target.value);
-    startPolling();
-  });
-  const slider = document.getElementById('similarityThreshold');
-  slider.addEventListener('input', e => {
-    document.getElementById('thresholdDisplay').textContent = e.target.value;
-    localStorage.setItem(STORAGE.THRESHOLD, e.target.value);
-    renderArticles();
-  });
-
-  // prompt modal
-  document.getElementById('openPromptBtn').addEventListener('click', () => {
-    document.getElementById('summaryPromptInput').value = getSummaryPrompt();
-    openModal('promptModal');
-  });
-  document.getElementById('closePrompt').addEventListener('click', () => closeModal('promptModal'));
-  document.getElementById('savePromptBtn').addEventListener('click', () => {
-    localStorage.setItem(STORAGE.PROMPT, document.getElementById('summaryPromptInput').value);
-    closeModal('promptModal');
-    toast('Prompt saved');
-  });
-  document.getElementById('resetPromptBtn').addEventListener('click', () => {
-    document.getElementById('summaryPromptInput').value = DEFAULT_PROMPT;
-  });
-
-  // summary
-  document.getElementById('generateSummaryBtn').addEventListener('click', generateSummary);
-
-  // close modals on overlay click
-  ['settingsModal', 'promptModal'].forEach(id => {
-    document.getElementById(id).addEventListener('click', e => {
-      if (e.target.id === id) closeModal(id);
-    });
-  });
-}
-
-// ── DATE ─────────────────────────────────────────────────────────
-function renderMastheadDate() {
-  const now = new Date();
-  document.getElementById('mastheadDate').textContent =
-    now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+// ── UTIL ───────────────────────────────────────────────────────
+function esc(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 function relativeTime(ts) {
@@ -1628,98 +1001,339 @@ function relativeTime(ts) {
   return `${d}d ago`;
 }
 
-function renderLastFetchInfo() {
-  const el = document.getElementById('lastFetchInfo');
-  if (!el) return;
-  el.textContent = lastFetch ? `Server last fetched ${relativeTime(new Date(lastFetch).getTime())}` : '';
+// ── ACQ/DISPOSAL CLIENT CLASSIFIER (mirrors worker.js) ─────────
+const ACQ_KW = [
+  'acquisition of', 'to acquire', 'concerning acquisition',
+  'notice concerning acquisition', 'notice regarding acquisition',
+  'completion of acquisition', 'concludes acquisition', 'additional acquisition',
+  'trust beneficiary', 'beneficiary interest',
+  'new property', 'asset acquisition', 'property acquisition',
+  '取得', '資産の取得', '資産取得', '不動産取得', '不動産の取得',
+  '信託受益権の取得', '信託受益権', '優先出資証券の取得',
+  '物件取得', '新規取得', '追加取得', '取得決定', '取得決議',
+];
+const DISP_KW = [
+  'disposition', 'disposal', 'sale of', 'transfer of',
+  'notice concerning disposition', 'notice concerning sale',
+  '譲渡', '資産の譲渡', '売却', '資産の売却', '譲渡決定', '譲渡決議',
+];
+const EXCL_KW = ['自己投資口', 'unit repurchase', 'own investment units'];
+
+function classifyClient(title, description) {
+  const hay = ((title || '') + ' ' + (description || '')).toLowerCase();
+  if (EXCL_KW.some(k => hay.includes(k.toLowerCase()))) return null;
+  const hasAcq  = ACQ_KW.some(k => hay.includes(k.toLowerCase()));
+  const hasDisp = DISP_KW.some(k => hay.includes(k.toLowerCase()));
+  if (hasAcq)  return 'acquisition';
+  if (hasDisp) return 'disposal';
+  return null;
 }
 
-// ── FEED MANAGEMENT ───────────────────────────────────────────────
+function reitCategory(a) {
+  if (a.category === 'acquisition' || a.category === 'disposal') return a.category;
+  if (a.acquisition) return 'acquisition';
+  return classifyClient(a.title, a.description);
+}
+function isReitFlagged(a) { return reitCategory(a) !== null; }
+
+// ── INIT ───────────────────────────────────────────────────────
+async function init() {
+  loadLocalPrefs();
+  syncThemeIcon();
+  renderMastheadDate();
+  attachEventListeners();
+  await loadFromBackend();
+  renderFeedFilter();
+  renderFeedList();
+  renderArticles();
+  startPolling();
+  silentBackgroundFetch();
+}
+
+function loadLocalPrefs() {
+  try { readSet = new Set(JSON.parse(localStorage.getItem(STORAGE.READ)) || []); }
+  catch { readSet = new Set(); }
+  const cached = localStorage.getItem(STORAGE.SUMMARY);
+  if (cached) {
+    try {
+      const s = JSON.parse(cached);
+      renderSummary(s.html, s.meta);
+    } catch {}
+  }
+}
+
+function saveRead() {
+  localStorage.setItem(STORAGE.READ, JSON.stringify([...readSet]));
+}
+
+function saveReitRead() {
+  localStorage.setItem('dispatch_reit_read', JSON.stringify([...reitReadSet]));
+}
+
+// ── BACKEND ────────────────────────────────────────────────────
+async function loadFromBackend() {
+  setStatus('fetching');
+  try {
+    const res  = await fetch(GAS_URL);
+    const data = await res.json();
+    feeds       = data.feeds       || [];
+    articles    = data.articles    || [];
+    lastFetch   = data.lastFetch   || null;
+    fetchErrors = data.fetchErrors || [];
+    if (data.summary && data.summary.rawText) {
+      renderSummary(markdownToHtml(data.summary.rawText), data.summary.meta);
+    }
+    setStatus('live');
+  } catch (e) {
+    console.error('loadFromBackend failed:', e);
+    toast('Failed to load data');
+    setStatus('idle');
+  }
+}
+
+async function silentBackgroundFetch() {
+  if (isFetching || !feeds.length) return;
+  isFetching = true;
+  setStatus('fetching');
+  try {
+    const res = await fetch(GAS_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body:    JSON.stringify({ action: 'forceFetch' }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      await loadFromBackend();
+      renderArticles();
+      if (data.added > 0) toast(`${data.added} new article${data.added > 1 ? 's' : ''}`);
+    }
+  } catch (e) {
+    console.error('Background fetch failed:', e);
+  }
+  isFetching = false;
+  setStatus('live');
+}
+
+async function forceFetchNow() {
+  if (isFetching) return;
+  if (!feeds.length) { toast('Add feeds first'); return; }
+  isFetching = true;
+  setStatus('fetching');
+  const btn = document.getElementById('forceFetchBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳';
+  try {
+    const res = await fetch(GAS_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body:    JSON.stringify({ action: 'forceFetch' }),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Fetch failed');
+    await loadFromBackend();
+    renderArticles();
+    toast(data.added > 0 ? `${data.added} new article${data.added > 1 ? 's' : ''}` : 'No new articles');
+  } catch (e) {
+    toast('Fetch failed: ' + e.message);
+  }
+  isFetching = false;
+  setStatus('live');
+  btn.disabled = false;
+  btn.textContent = '⚡';
+}
+
+// Auto-refresh: fetch fresh RSS every minute. This replaces the old
+// separate "Refresh" button in the toolbar.
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(() => { silentBackgroundFetch(); }, 60000);
+}
+
+// ── STATUS + DATE ──────────────────────────────────────────────
+function setStatus(state) {
+  const dot  = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  dot.className = 'status-dot ' + state;
+  const labels = { fetching: 'fetching…', live: 'updated', idle: 'idle' };
+  text.textContent = labels[state] || state;
+}
+
+function renderMastheadDate() {
+  const now = new Date();
+  document.getElementById('mastheadDate').textContent =
+    now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+// Data horizon on toolbar
+function renderDataHorizon(arts) {
+  const el = document.getElementById('lastFetchInfo');
+  if (!el) return;
+  if (!arts || !arts.length) { el.textContent = ''; return; }
+  const ts = arts.map(a => a.timestamp).filter(Boolean);
+  if (!ts.length) return;
+  const oldest = new Date(Math.min(...ts));
+  const newest = new Date(Math.max(...ts));
+  const fmt = d => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+  const days = Math.round((newest - oldest) / 86400000);
+  const label = days > 180 ? `${(days/30).toFixed(0)}mo span` : `${days}d span`;
+  const serverStr = lastFetch ? ` · fetched ${relativeTime(new Date(lastFetch).getTime())}` : '';
+  el.textContent = `Data ${fmt(oldest)} → ${fmt(newest)} (${label}, ${arts.length}/800)${serverStr}`;
+}
+
+// ── EVENT LISTENERS ────────────────────────────────────────────
+function attachEventListeners() {
+  document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(`pane-${btn.dataset.tab}`).classList.add('active');
+      if (btn.dataset.tab === 'reits') ensureReitLoaded().then(renderReitPane);
+    });
+  });
+
+  // Feed toolbar
+  document.getElementById('forceFetchBtn').addEventListener('click', forceFetchNow);
+  document.getElementById('markAllReadBtn').addEventListener('click', markAllRead);
+  document.getElementById('openSettingsBtn').addEventListener('click', () => openModal('settingsModal'));
+  document.getElementById('feedFilter').addEventListener('change', renderArticles);
+  document.getElementById('readFilter').addEventListener('change', renderArticles);
+
+  // Date filter
+  document.getElementById('dateFilterBtn').addEventListener('click', toggleDatePopover);
+  document.getElementById('closeDatePopover').addEventListener('click', () =>
+    document.getElementById('datePopover').classList.remove('open'));
+  document.getElementById('applyDateFilter').addEventListener('click', applyDateFilter);
+  document.getElementById('clearDateFilter').addEventListener('click', clearDateFilter);
+  document.querySelectorAll('.date-preset').forEach(b =>
+    b.addEventListener('click', () => applyDatePreset(b.dataset.preset)));
+  document.addEventListener('click', e => {
+    const pop = document.getElementById('datePopover');
+    const btn = document.getElementById('dateFilterBtn');
+    if (!pop.classList.contains('open')) return;
+    if (pop.contains(e.target) || btn.contains(e.target)) return;
+    pop.classList.remove('open');
+  });
+
+  // Settings modal
+  document.getElementById('closeSettings').addEventListener('click', () => closeModal('settingsModal'));
+  document.getElementById('addFeedBtn').addEventListener('click', addFeed);
+  document.getElementById('feedUrlInput').addEventListener('keydown', e => { if (e.key === 'Enter') addFeed(); });
+  document.getElementById('clearReadBtn').addEventListener('click', clearRead);
+  document.getElementById('clearAllBtn').addEventListener('click', clearAllLocal);
+
+  // Prompt modal
+  document.getElementById('openPromptBtn').addEventListener('click', () => {
+    document.getElementById('summaryPromptInput').value = getSummaryPrompt();
+    openModal('promptModal');
+  });
+  document.getElementById('closePrompt').addEventListener('click', () => closeModal('promptModal'));
+  document.getElementById('savePromptBtn').addEventListener('click', () => {
+    localStorage.setItem(STORAGE.PROMPT, document.getElementById('summaryPromptInput').value);
+    closeModal('promptModal');
+    toast('Prompt saved');
+  });
+  document.getElementById('resetPromptBtn').addEventListener('click', () => {
+    document.getElementById('summaryPromptInput').value = DEFAULT_PROMPT;
+  });
+
+  // Summary
+  document.getElementById('generateSummaryBtn').addEventListener('click', generateSummary);
+
+  // PDF modal
+  document.getElementById('closePdfModal').addEventListener('click', closePdfModal);
+  document.getElementById('pdfTranslateBtn').addEventListener('click', translatePdfModalTitle);
+  document.getElementById('pdfOpenExternalBtn').addEventListener('click', () => {
+    if (currentPdfUrl) window.open(currentPdfUrl, '_blank', 'noopener');
+  });
+  document.getElementById('pdfModal').addEventListener('click', e => {
+    if (e.target.id === 'pdfModal') closePdfModal();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.getElementById('pdfModal').classList.contains('open')) closePdfModal();
+  });
+
+  // REIT fetch
+  document.getElementById('reitFetchBtn').addEventListener('click', silentReitFetch);
+
+  // Close modals on overlay click
+  ['settingsModal', 'promptModal'].forEach(id => {
+    document.getElementById(id).addEventListener('click', e => {
+      if (e.target.id === id) closeModal(id);
+    });
+  });
+}
+
+// ── DATE FILTER ────────────────────────────────────────────────
+function toggleDatePopover(e) {
+  e.stopPropagation();
+  document.getElementById('datePopover').classList.toggle('open');
+}
+function fmtDateInput(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function applyDatePreset(preset) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let fromDate = today, toDate = today;
+  if (preset === 'yesterday') { fromDate = new Date(today.getTime() - 86400000); toDate = fromDate; }
+  else if (preset === '7d')   fromDate = new Date(now.getTime() - 7 * 86400000);
+  else if (preset === '30d')  fromDate = new Date(now.getTime() - 30 * 86400000);
+  else if (preset === '90d')  fromDate = new Date(now.getTime() - 90 * 86400000);
+  document.getElementById('dateFrom').value = fmtDateInput(fromDate);
+  document.getElementById('dateTo').value   = fmtDateInput(toDate);
+  applyDateFilter();
+}
+function applyDateFilter() {
+  const fromVal = document.getElementById('dateFrom').value;
+  const toVal   = document.getElementById('dateTo').value;
+  dateFilterFrom = fromVal ? new Date(fromVal + 'T00:00:00').getTime() : null;
+  dateFilterTo   = toVal   ? new Date(toVal   + 'T23:59:59').getTime() : null;
+  document.getElementById('dateFilterBtn').classList.toggle('active', dateFilterFrom !== null || dateFilterTo !== null);
+  document.getElementById('datePopover').classList.remove('open');
+  renderArticles();
+}
+function clearDateFilter() {
+  dateFilterFrom = null;
+  dateFilterTo   = null;
+  document.getElementById('dateFrom').value = '';
+  document.getElementById('dateTo').value   = '';
+  document.getElementById('dateFilterBtn').classList.remove('active');
+  document.getElementById('datePopover').classList.remove('open');
+  renderArticles();
+}
+
+// ── FEED MGMT ──────────────────────────────────────────────────
 async function syncFeedsToBackend(confirmClear) {
   try {
     const res = await fetch(GAS_URL, {
-      method: 'POST',
+      method:  'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'updateFeeds', feeds: feeds, confirmClear: !!confirmClear })
+      body:    JSON.stringify({ action: 'updateFeeds', feeds, confirmClear: !!confirmClear }),
     });
     const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Unknown error');
-  } catch (err) {
-    console.error('Failed to sync feeds:', err);
-    toast('Sync failed: ' + (err.message || err));
+    if (!data.success) throw new Error(data.error || 'Sync failed');
+  } catch (e) {
+    toast('Sync failed: ' + (e.message || e));
   }
 }
 
 async function addFeed() {
   const url  = document.getElementById('feedUrlInput').value.trim();
   const name = document.getElementById('feedNameInput').value.trim() || extractName(url);
-  if (!url) return toast('Enter a feed URL');
-  if (!url.startsWith('http')) return toast('URL must start with http');
-
-  await addFeedToList(url, name);
-
-  document.getElementById('feedUrlInput').value = '';
-  document.getElementById('feedNameInput').value = '';
-}
-
-async function addFeedToList(url, name) {
+  if (!url || !url.startsWith('http')) { toast('Enter a valid URL'); return; }
   if (feeds.find(f => f.url === url)) { toast('Feed already added'); return; }
-
   feeds.push({ url, name, id: Date.now().toString() });
   renderFeedList();
   renderFeedFilter();
-  toast(`Added: ${name}. Fetching on server...`);
-
+  toast(`Added ${name}. Fetching…`);
   await syncFeedsToBackend();
   await loadFromBackend();
   renderArticles();
-}
-
-// ── ADD FEED: PUBLISHER SEARCH MODE (via Google News RSS) ───────────
-function switchAddFeedMode(mode) {
-  const isUrl = mode === 'url';
-  document.getElementById('addModeUrlTab').classList.toggle('active', isUrl);
-  document.getElementById('addModePublisherTab').classList.toggle('active', !isUrl);
-  document.getElementById('urlModeRow').style.display = isUrl ? 'flex' : 'none';
-  document.getElementById('publisherModeRow').style.display = isUrl ? 'none' : 'block';
-}
-
-function buildGoogleNewsFeedUrl(domainOrTerm) {
-  const cleaned = domainOrTerm.trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
-  // If it looks like a domain (has a dot, no spaces), use allinurl: to match
-  // articles whose URL contains that domain. Otherwise treat it as a plain
-  // keyword/publisher-name search.
-  const looksLikeDomain = /^[\w.-]+\.[a-z]{2,}$/i.test(cleaned) && !cleaned.includes(' ');
-  const q = looksLikeDomain ? `allinurl:${cleaned}` : encodeURIComponent(cleaned);
-  // Built manually (not via URLSearchParams) to match Google News' expected
-  // format exactly: '+' as a literal AND operator and ':' left unescaped in
-  // operators like allinurl: / when: — encoding these breaks the query.
-  return `https://news.google.com/rss/search?q=when:24h+${q}&ceid=SG:en&hl=en&gl=SG`;
-}
-
-function buildPublisherFeedPreview() {
-  const input = document.getElementById('publisherDomainInput').value.trim();
-  if (!input) return toast('Enter a domain or publisher name');
-
-  const url = buildGoogleNewsFeedUrl(input);
-  const displayName = extractName(input.includes('.') ? `https://${input.replace(/^https?:\/\//, '')}` : input) || input;
-
-  document.getElementById('publisherUrlPreview').value = url;
-  document.getElementById('publisherNameInput').value = displayName;
-  document.getElementById('publisherPreview').style.display = 'block';
-}
-
-async function addPublisherFeed() {
-  const url  = document.getElementById('publisherUrlPreview').value.trim();
-  const name = document.getElementById('publisherNameInput').value.trim() || 'Google News search';
-  if (!url) return toast('Build a preview first');
-
-  await addFeedToList(url, name);
-
-  document.getElementById('publisherDomainInput').value = '';
-  document.getElementById('publisherNameInput').value = '';
-  document.getElementById('publisherUrlPreview').value = '';
-  document.getElementById('publisherPreview').style.display = 'none';
+  document.getElementById('feedUrlInput').value = '';
+  document.getElementById('feedNameInput').value = '';
 }
 
 async function removeFeed(id) {
@@ -1728,18 +1342,15 @@ async function removeFeed(id) {
   renderFeedList();
   renderFeedFilter();
   renderArticles();
-  toast('Feed removed. Syncing...');
-
-  // confirmClear:true — this is an explicit user action (clicking "×" on a
-  // feed), so if it happens to be the last feed, the resulting empty array
-  // should be honoured rather than rejected by the backend's safety guard.
   await syncFeedsToBackend(true);
+  toast('Feed removed');
 }
+window.removeFeed = removeFeed;
 
 function extractName(url) {
   try {
-    return new URL(url).hostname.replace('www.', '').replace('feeds.', '').split('.')[0];
-  } catch (e) { return 'Feed'; }
+    return new URL(url).hostname.replace('www.', '').split('.')[0];
+  } catch { return 'Feed'; }
 }
 
 function renderFeedList() {
@@ -1752,7 +1363,7 @@ function renderFeedList() {
     <li class="feed-list-item">
       <span class="feed-list-name">${esc(f.name)}</span>
       <span class="feed-list-url">${esc(f.url)}</span>
-      <button class="feed-remove" onclick="removeFeed('${f.id}')" title="Remove">×</button>
+      <button class="feed-remove" onclick="removeFeed('${esc(f.id)}')" title="Remove">×</button>
     </li>
   `).join('');
 }
@@ -1761,108 +1372,11 @@ function renderFeedFilter() {
   const sel = document.getElementById('feedFilter');
   const cur = sel.value;
   sel.innerHTML = '<option value="all">All Feeds</option>' +
-    feeds.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('');
+    feeds.map(f => `<option value="${esc(f.id)}">${esc(f.name)}</option>`).join('');
   sel.value = feeds.find(f => f.id === cur) ? cur : 'all';
 }
 
-function updateIntervalDisplay() {
-  const iv = localStorage.getItem(STORAGE.INTERVAL) || '15';
-  document.getElementById('refreshInterval').value = iv;
-}
-
-// ── FETCHING (now just re-pulling cached backend data, or forcing) ──
-async function forceFetchNow() {
-  if (isFetching) return;
-  if (!feeds.length) { toast('Add feeds first'); return; }
-  isFetching = true;
-  setStatus('fetching');
-  const btn = document.getElementById('forceFetchBtn');
-  btn.disabled = true;
-  btn.textContent = '⏳';
-
-  try {
-    const res = await fetch(GAS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'forceFetch' })
-    });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Fetch failed');
-    await loadFromBackend(); // also refreshes fetchErrors via the global state
-    renderArticles();
-
-    const errCount = (data.errors || []).length;
-    let msg = data.added > 0 ? `${data.added} new article${data.added > 1 ? 's' : ''}` : 'No new articles';
-    if (errCount > 0) msg += ` — ${errCount} feed${errCount > 1 ? 's' : ''} failed (see banner below toolbar)`;
-    toast(msg);
-  } catch (e) {
-    console.error(e);
-    toast('Force fetch failed: ' + e.message);
-  }
-
-  isFetching = false;
-  setStatus('live');
-  btn.disabled = false;
-  btn.textContent = '⚡';
-}
-
-// ── POLLING ───────────────────────────────────────────────────────
-// Auto-refresh: fetch fresh RSS every minute so the feed stays current.
-// This is why the "Refresh" button was removed from the toolbar — every
-// 60s the frontend now triggers a real backend fetch itself.
-function startPolling() {
-  if (pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(() => {
-    silentBackgroundFetch();
-  }, 60000);
-}
-
-// ── STATUS ────────────────────────────────────────────────────────
-function setStatus(state) {
-  const dot  = document.getElementById('statusDot');
-  const text = document.getElementById('statusText');
-  dot.className = 'status-dot ' + state;
-  const labels = { fetching: 'fetching…', live: 'updated', idle: 'idle' };
-  text.textContent = labels[state] || state;
-}
-
-// ── SIMILARITY ────────────────────────────────────────────────────
-function tokenize(str) {
-  return str.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 2);
-}
-
-function jaccard(a, b) {
-  const sa = new Set(tokenize(a));
-  const sb = new Set(tokenize(b));
-  const inter = [...sa].filter(x => sb.has(x)).length;
-  const union = new Set([...sa, ...sb]).size;
-  return union === 0 ? 0 : inter / union;
-}
-
-function clusterArticles(arts) {
-  const threshold = parseFloat(localStorage.getItem(STORAGE.THRESHOLD) || '0.45');
-  const clusters  = [];
-  const assigned  = new Set();
-
-  arts.forEach((art, i) => {
-    if (assigned.has(i)) return;
-    const group = [i];
-    arts.forEach((other, j) => {
-      if (i === j || assigned.has(j)) return;
-      const sim = jaccard(art.title, other.title);
-      if (sim >= threshold) {
-        group.push(j);
-        assigned.add(j);
-      }
-    });
-    assigned.add(i);
-    clusters.push(group.map(idx => arts[idx]));
-  });
-
-  return clusters;
-}
-
-// ── RENDER ARTICLES ───────────────────────────────────────────────
+// ── ARTICLES ───────────────────────────────────────────────────
 function renderArticles() {
   const feedId   = document.getElementById('feedFilter').value;
   const readMode = document.getElementById('readFilter').value;
@@ -1874,108 +1388,38 @@ function renderArticles() {
   if (dateFilterFrom !== null) filtered = filtered.filter(a => a.timestamp >= dateFilterFrom);
   if (dateFilterTo   !== null) filtered = filtered.filter(a => a.timestamp <= dateFilterTo);
 
-  const count = document.getElementById('articleCount');
   const filterLabel = (dateFilterFrom !== null || dateFilterTo !== null) ? ' · date filtered' : '';
-  count.textContent = `${filtered.length} article${filtered.length !== 1 ? 's' : ''}${filterLabel}`;
-  renderLastFetchInfo();
+  document.getElementById('articleCount').textContent = `${filtered.length} article${filtered.length !== 1 ? 's' : ''}${filterLabel}`;
+  renderDataHorizon(articles);
 
   const list = document.getElementById('articleList');
   if (!filtered.length && !feeds.length) {
-    list.innerHTML = `<div class="empty-state">
-      <div class="empty-state-icon">📡</div>
-      <h3>No feeds yet</h3>
-      <p>Click <strong>⚙ Feeds</strong> to add RSS feeds and start reading.</p>
-    </div>`;
+    list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📡</div>
+      <h3>No feeds yet</h3><p>Click <strong>⚙ Feeds</strong> to add RSS feeds.</p></div>`;
     return;
   }
   if (!filtered.length) {
-    list.innerHTML = `<div class="empty-state">
-      <div class="empty-state-icon">✓</div>
-      <h3>All caught up</h3>
-      <p>No ${readMode === 'unread' ? 'unread ' : ''}articles to show. Try refreshing or switching the filter.</p>
-    </div>`;
+    list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">✓</div>
+      <h3>All caught up</h3><p>No ${readMode === 'unread' ? 'unread ' : ''}articles to show.</p></div>`;
     return;
   }
 
-  const clusters = clusterArticles(filtered);
-  const html     = clusters.map(cluster => renderCluster(cluster)).join('');
-  list.innerHTML = html;
+  list.innerHTML = filtered.map(a => renderArticleRow(a)).join('');
 }
 
-function renderCluster(cluster) {
-  if (cluster.length === 1) {
-    return renderSingleRow(cluster[0]);
-  }
-  const primary = cluster[0];
-  const allRead = cluster.every(a => readSet.has(a.id));
-  const clusterId = 'cluster_' + primary.id;
-  return `
-    <div class="cluster-row${allRead ? ' read' : ''}">
-      <div class="cluster-header" onclick="toggleCluster('${clusterId}', ${JSON.stringify(cluster.map(a => a.id)).replace(/"/g, '&quot;')})">
-        <span class="cluster-label">▸ ${cluster.length} sources</span>
-        <span class="cluster-title">${esc(primary.title)}</span>
-        <span class="cluster-toggle" id="toggle_${clusterId}">expand</span>
-      </div>
-      <div class="cluster-articles" id="${clusterId}">
-        ${cluster.map(a => `
-          <div class="cluster-item${readSet.has(a.id) ? ' read' : ''}" onclick="openArticle(event, '${a.id}', '${esc(a.link)}')">
-            <div>
-              <div class="cluster-item-title">${esc(a.title)}</div>
-              <div class="cluster-item-meta"><span style="color:var(--accent)">${esc(a.feedName)}</span> · ${relativeTime(a.timestamp)}</div>
-            </div>
-            <div class="article-time">${relativeTime(a.timestamp)}</div>
-          </div>
-        `).join('')}
-      </div>
-    </div>`;
-}
-
-function renderSingleRow(a) {
+function renderArticleRow(a) {
   const read = readSet.has(a.id);
-  const sum = articleSummaries[a.id];
   return `
-    <div class="article-row${read ? ' read' : ''}">
+    <div class="article-row${read ? ' read' : ''}" onclick="openArticle(event, '${esc(a.id)}', '${esc(a.link)}')">
       <div class="article-row-top">
-        <div onclick="openArticle(event, '${a.id}', '${esc(a.link)}')" style="cursor:pointer;flex:1;min-width:0;">
+        <div style="flex:1;min-width:0;">
           <div class="article-title">${esc(a.title)}</div>
-          <div class="article-meta">
-            <span class="source">${esc(a.feedName)}</span>
-          </div>
+          <div class="article-meta"><span class="source">${esc(a.feedName)}</span></div>
         </div>
-        <div class="article-actions">
-          <div class="article-time">${relativeTime(a.timestamp)}</div>
-          <button class="summarize-btn${sum && sum.text ? ' active' : ''}" id="sumbtn_${a.id}" title="${sum && sum.text ? 'Hide summary' : 'Summarise with AI'}" onclick="event.stopPropagation(); summariseArticle('${a.id}')">
-            ${sum && sum.loading ? '<span class="spinner"></span>' : geminiIconSvg()}
-          </button>
-        </div>
+        <div class="article-time">${relativeTime(a.timestamp)}</div>
       </div>
-      <div class="article-description" onclick="openArticle(event, '${a.id}', '${esc(a.link)}')">${esc(a.description?.slice(0, 160) || '')}</div>
-      <div class="article-summary-panel${sum && sum.text ? ' open' : ''}${sum && sum.error ? ' error' : ''}" id="sumpanel_${a.id}">
-        ${sum ? (sum.error ? esc(sum.error) : esc(sum.text || '')) : ''}
-      </div>
+      <div class="article-description">${esc(a.description ? a.description.slice(0, 200) : '')}</div>
     </div>`;
-}
-
-// Simple sparkle/spark glyph used as a generic "AI" indicator — not
-// Google's Gemini logo, which is a registered trademark and not something
-// we can reproduce. This is a neutral four-point sparkle, same visual
-// language used broadly across AI features (distinct from any single brand).
-function geminiIconSvg() {
-  return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M12 2 L14.2 9.8 L22 12 L14.2 14.2 L12 22 L9.8 14.2 L2 12 L9.8 9.8 Z" fill="currentColor"/>
-  </svg>`;
-}
-
-function toggleCluster(id, articleIds) {
-  const el     = document.getElementById(id);
-  const toggle = document.getElementById('toggle_' + id);
-  const isOpen = el.classList.contains('open');
-  el.classList.toggle('open', !isOpen);
-  toggle.textContent = isOpen ? 'expand' : 'collapse';
-  if (!isOpen) {
-    articleIds.forEach(aid => readSet.add(aid));
-    saveRead();
-  }
 }
 
 function openArticle(e, id, url) {
@@ -1985,6 +1429,7 @@ function openArticle(e, id, url) {
   renderArticles();
   if (url && url !== 'undefined') window.open(url, '_blank', 'noopener');
 }
+window.openArticle = openArticle;
 
 function markAllRead() {
   const feedId   = document.getElementById('feedFilter').value;
@@ -1999,174 +1444,22 @@ function markAllRead() {
 }
 
 function clearRead() {
-  if (!confirm('Clear read history? Articles will appear unread again.')) return;
+  if (!confirm('Clear read history?')) return;
   readSet.clear();
   saveRead();
   renderArticles();
   toast('Read history cleared');
 }
 
-function clearAll() {
-  if (!confirm('Clear local read history and UI preferences? (Feeds and cached articles live on the server and are not affected.)')) return;
+function clearAllLocal() {
+  if (!confirm('Clear local read history and preferences? (Server data unaffected.)')) return;
   Object.values(STORAGE).forEach(k => localStorage.removeItem(k));
   readSet = new Set();
   renderArticles();
   toast('Local data cleared');
 }
 
-// ── DATE FILTER ────────────────────────────────────────────────────
-function toggleDatePopover(e) {
-  e.stopPropagation();
-  document.getElementById('datePopover').classList.toggle('open');
-}
-
-function fmtDateInput(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function applyDatePreset(preset) {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  let fromDate = today;
-  let toDate   = today;
-  if (preset === 'today')      { fromDate = today; toDate = today; }
-  else if (preset === 'yesterday') { fromDate = new Date(today.getTime() - 86400000); toDate = fromDate; }
-  else if (preset === '7d')    { fromDate = new Date(now.getTime() - 7 * 86400000); toDate = today; }
-  else if (preset === '30d')   { fromDate = new Date(now.getTime() - 30 * 86400000); toDate = today; }
-  else if (preset === '90d')   { fromDate = new Date(now.getTime() - 90 * 86400000); toDate = today; }
-  document.getElementById('dateFrom').value = fmtDateInput(fromDate);
-  document.getElementById('dateTo').value = fmtDateInput(toDate);
-  applyDateFilter();
-}
-
-function applyDateFilter() {
-  const fromVal = document.getElementById('dateFrom').value;
-  const toVal   = document.getElementById('dateTo').value;
-  dateFilterFrom = fromVal ? new Date(fromVal + 'T00:00:00').getTime() : null;
-  dateFilterTo   = toVal   ? new Date(toVal   + 'T23:59:59').getTime() : null;
-  document.getElementById('dateFilterBtn').classList.toggle('active', dateFilterFrom !== null || dateFilterTo !== null);
-  document.getElementById('datePopover').classList.remove('open');
-  renderArticles();
-}
-
-function clearDateFilter() {
-  dateFilterFrom = null;
-  dateFilterTo   = null;
-  document.getElementById('dateFrom').value = '';
-  document.getElementById('dateTo').value   = '';
-  document.getElementById('dateFilterBtn').classList.remove('active');
-  document.getElementById('datePopover').classList.remove('open');
-  renderArticles();
-}
-
-// ── PDF MODAL (REIT filings) ───────────────────────────────────────
-function openPdfModal(url, title) {
-  currentPdfUrl         = url;
-  currentPdfTitle       = title;
-  currentPdfTranslation = null;
-  document.getElementById('pdfModalTitle').textContent = title;
-  const trEl = document.getElementById('pdfModalTitleTranslated');
-  trEl.textContent = '';
-  trEl.classList.remove('show');
-  const btn = document.getElementById('pdfTranslateBtn');
-  btn.classList.remove('active');
-  btn.textContent = '🌐';
-  const iframe   = document.getElementById('pdfModalIframe');
-  const fallback = document.getElementById('pdfModalFallback');
-  fallback.classList.remove('show');
-  document.getElementById('pdfModalFallbackLink').href = url;
-  // Try inline embed. Sites that set X-Frame-Options: DENY will show a
-  // blank iframe — user can fall back to the ↗ button in the header.
-  iframe.src = url;
-  document.getElementById('pdfModal').classList.add('open');
-}
-
-function closePdfModal() {
-  document.getElementById('pdfModal').classList.remove('open');
-  document.getElementById('pdfModalIframe').src = 'about:blank';
-  currentPdfUrl = null;
-  currentPdfTitle = null;
-  currentPdfTranslation = null;
-}
-
-// Translate the filing title (Japanese → English) via the Worker + Gemini.
-async function translatePdfModalTitle() {
-  if (!currentPdfTitle) return;
-  const btn  = document.getElementById('pdfTranslateBtn');
-  const trEl = document.getElementById('pdfModalTitleTranslated');
-
-  // Toggle off if already showing
-  if (currentPdfTranslation && trEl.classList.contains('show')) {
-    trEl.classList.remove('show');
-    btn.classList.remove('active');
-    return;
-  }
-  if (currentPdfTranslation) {
-    trEl.textContent = currentPdfTranslation;
-    trEl.classList.add('show');
-    btn.classList.add('active');
-    return;
-  }
-
-  btn.disabled = true;
-  btn.textContent = '⏳';
-  try {
-    const res = await fetch(GAS_URL, {
-      method:  'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body:    JSON.stringify({ action: 'translateText', text: currentPdfTitle })
-    });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Translate failed');
-    currentPdfTranslation = data.translation;
-    trEl.textContent = data.translation;
-    trEl.classList.add('show');
-    btn.classList.add('active');
-  } catch (err) {
-    toast('Translate failed: ' + err.message);
-  }
-  btn.disabled = false;
-  btn.textContent = '🌐';
-}
-
-// ── PER-ARTICLE SUMMARISE ──────────────────────────────────────────
-async function summariseArticle(id) {
-  const existing = articleSummaries[id];
-  // If already have a summary showing, treat the button as a hide toggle
-  if (existing && existing.text && !existing.loading) {
-    delete articleSummaries[id];
-    renderArticles();
-    return;
-  }
-
-  const article = articles.find(a => a.id === id);
-  if (!article) return;
-
-  articleSummaries[id] = { loading: true };
-  renderArticles();
-
-  try {
-    const res = await fetch(GAS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({
-        action: 'summariseArticle',
-        title: article.title,
-        description: article.description,
-        link: article.link
-      })
-    });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Failed to summarise');
-    articleSummaries[id] = { text: data.summary };
-  } catch (err) {
-    console.error(err);
-    articleSummaries[id] = { error: 'Could not summarise: ' + err.message };
-  }
-  renderArticles();
-}
-
-// ── AI SUMMARY (page-level digest of unread headlines) ─────────────
+// ── SUMMARY ────────────────────────────────────────────────────
 function getSummaryPrompt() {
   return localStorage.getItem(STORAGE.PROMPT) || DEFAULT_PROMPT;
 }
@@ -2174,47 +1467,36 @@ function getSummaryPrompt() {
 async function generateSummary() {
   const btn = document.getElementById('generateSummaryBtn');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Generating & Saving...';
-
+  btn.innerHTML = '<span class="spinner"></span> Generating…';
   const unread = articles.filter(a => !readSet.has(a.id)).slice(0, 150);
   if (!unread.length) {
-    toast('No unread articles to summarise');
+    toast('No unread articles');
     btn.disabled = false;
     btn.textContent = 'Generate summary';
     return;
   }
-
   const headlineBlock = unread.map((a, i) =>
     `${i + 1}. [${a.feedName}] ${a.title}${a.description ? ` — ${a.description.slice(0, 120)}` : ''}`
   ).join('\n');
-
-  const userMessage = `Here are ${unread.length} unread headlines from my RSS feeds (newest first). Please analyse and summarise:\n\n${headlineBlock}`;
-
   try {
-    const payload = {
-      action: 'generateSummary',
-      headlines: userMessage,
-      prompt: getSummaryPrompt()
-    };
-
     const res = await fetch(GAS_URL, {
-      method: 'POST',
+      method:  'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
+      body:    JSON.stringify({
+        action: 'generateSummary',
+        headlines: `Here are ${unread.length} unread headlines:\n\n${headlineBlock}`,
+        prompt: getSummaryPrompt(),
+      }),
     });
-
     const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Failed to generate');
-
-    const htmlOut = markdownToHtml(data.summary.rawText);
-    renderSummary(htmlOut, data.summary.meta);
-    toast('Summary generated and saved');
+    if (!data.success) throw new Error(data.error || 'Failed');
+    renderSummary(markdownToHtml(data.summary.rawText), data.summary.meta);
+    toast('Summary generated');
   } catch (err) {
     document.getElementById('summaryBody').innerHTML =
       `<div class="summary-placeholder"><div class="icon">⚠</div><p style="color:var(--accent)">${esc(err.message)}</p></div>`;
     toast('Error: ' + err.message);
   }
-
   btn.disabled = false;
   btn.textContent = 'Generate summary';
 }
@@ -2224,7 +1506,6 @@ function renderSummary(html, meta) {
   document.getElementById('summaryMeta').textContent = meta || '';
 }
 
-// minimal markdown → html
 function markdownToHtml(md) {
   return md
     .replace(/^### (.+)$/gm, '<h3>$1</h3>')
@@ -2244,26 +1525,20 @@ function markdownToHtml(md) {
     .join('\n');
 }
 
-// ── MODALS ────────────────────────────────────────────────────────
-// ── THEME ─────────────────────────────────────────────────────────
+// ── THEME / MODAL / TOAST ──────────────────────────────────────
 function toggleTheme() {
-  const html = document.documentElement;
-  const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-  html.setAttribute('data-theme', next);
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
   localStorage.setItem('dispatch_theme', next);
   syncThemeIcon();
 }
-
 function syncThemeIcon() {
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   document.getElementById('themeToggle').textContent = isDark ? '☾' : '☀';
 }
-
-// ── MODALS ────────────────────────────────────────────────────────
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
-// ── TOAST ─────────────────────────────────────────────────────────
 let toastTimer;
 function toast(msg) {
   const el = document.getElementById('toast');
@@ -2273,39 +1548,13 @@ function toast(msg) {
   toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
 }
 
-// ── UTILS ─────────────────────────────────────────────────────────
-function esc(str) {
-  if (!str) return '';
-  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-// ── BOOT ─────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    await init();
-  } catch (err) {
-    console.error('Failed during boot:', err);
-  }
-});
-
-// ── REIT FILINGS ──────────────────────────────────────────────────────
-// State
-let reitArticles = [];
-let reitFeeds    = [];
-let reitReadSet  = new Set(JSON.parse(localStorage.getItem('dispatch_reit_read') || '[]'));
-let reitFetching = false;
-
-function saveReitRead() {
-  localStorage.setItem('dispatch_reit_read', JSON.stringify([...reitReadSet]));
-}
-
-// Load from Worker on tab open (lazy — only when REIT tab is first clicked)
-let reitLoaded = false;
+/* ==============================================================
+   REIT TAB
+============================================================== */
 async function ensureReitLoaded() {
   if (reitLoaded) return;
   reitLoaded = true;
   await loadReitData();
-  // kick off a fresh fetch in background immediately after first load
   silentReitFetch();
 }
 
@@ -2319,7 +1568,6 @@ async function loadReitData() {
     document.getElementById('reitLastFetch').textContent = `Server last fetched ${ts}`;
   } catch (e) {
     document.getElementById('reitLastFetch').textContent = 'Failed to load';
-    console.error('REIT load failed:', e);
   }
 }
 
@@ -2327,35 +1575,27 @@ async function silentReitFetch() {
   if (reitFetching) return;
   reitFetching = true;
   const btn = document.getElementById('reitFetchBtn');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Fetching…'; }
+  btn.disabled = true;
+  btn.textContent = '⏳ Fetching…';
   try {
-    const res  = await fetch(GAS_URL, {
-      method: 'POST',
+    const res = await fetch(GAS_URL, {
+      method:  'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'forceFetchReit' }),
+      body:    JSON.stringify({ action: 'forceFetchReit' }),
     });
     const data = await res.json();
     if (data.success) {
       await loadReitData();
       renderReitPane();
-      if (data.added > 0) toast(`${data.added} new REIT filing${data.added > 1 ? 's' : ''}`);
+      if (data.added > 0) toast(`${data.added} new filing${data.added > 1 ? 's' : ''}`);
     }
   } catch (e) {
     console.error('REIT fetch failed:', e);
   }
   reitFetching = false;
-  if (btn) { btn.disabled = false; btn.textContent = '⚡ Fetch now'; }
+  btn.disabled = false;
+  btn.textContent = '⚡ Fetch now';
 }
-
-// ── RENDER ────────────────────────────────────────────────────────────
-// Categorisation helpers. Worker stores category as `a.category`
-// ('acquisition' | 'disposal'); older data may have `a.acquisition` boolean.
-function reitCategory(a) {
-  if (a.category === 'acquisition' || a.category === 'disposal') return a.category;
-  if (a.acquisition) return 'acquisition';
-  return null;
-}
-function isReitFlagged(a) { return reitCategory(a) !== null; }
 
 function renderReitPane() {
   const body = document.getElementById('reitBody');
@@ -2364,25 +1604,37 @@ function renderReitPane() {
   const acqCount  = reitArticles.filter(a => reitCategory(a) === 'acquisition').length;
   const dispCount = reitArticles.filter(a => reitCategory(a) === 'disposal').length;
   const total     = reitArticles.length;
+
   const parts = [`${total} filing${total !== 1 ? 's' : ''}`];
   if (acqCount > 0)  parts.push(`${acqCount} acquisition${acqCount > 1 ? 's' : ''}`);
   if (dispCount > 0) parts.push(`${dispCount} disposal${dispCount > 1 ? 's' : ''}`);
   document.getElementById('reitCount').textContent = parts.join(' · ');
 
+  // Data horizon
+  const reitLastFetchEl = document.getElementById('reitLastFetch');
+  if (reitLastFetchEl && reitArticles.length) {
+    const ts = reitArticles.map(a => a.timestamp).filter(Boolean);
+    if (ts.length) {
+      const oldest = new Date(Math.min(...ts));
+      const newest = new Date(Math.max(...ts));
+      const fmt = d => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      const days = Math.round((newest - oldest) / 86400000);
+      const label = days > 180 ? `${(days/30).toFixed(0)}mo` : `${days}d`;
+      reitLastFetchEl.textContent = `Data ${fmt(oldest)} → ${fmt(newest)} · ${label} · ${reitArticles.length}/300 stored`;
+    }
+  }
+
   if (!total && reitFeeds.filter(f => f.url).length === 0) {
     body.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🏢</div>
-      <h3>No REIT feeds configured</h3><p>Add feed URLs in the worker.js REIT_FEEDS list.</p></div>`;
+      <h3>No REIT feeds configured</h3></div>`;
     return;
   }
 
-  // Group articles by feed
   const byFeed = {};
   for (const f of reitFeeds) byFeed[f.id] = [];
-  for (const a of reitArticles) {
-    if (byFeed[a.feedId]) byFeed[a.feedId].push(a);
-  }
+  for (const a of reitArticles) if (byFeed[a.feedId]) byFeed[a.feedId].push(a);
 
-  // Sort each group: flagged (acquisition/disposal) first, then by date
+  // Sort within each feed: flagged first, then newest
   for (const id in byFeed) {
     byFeed[id].sort((a, b) => {
       const fa = isReitFlagged(a) ? 1 : 0;
@@ -2392,7 +1644,7 @@ function renderReitPane() {
     });
   }
 
-  // Sort FEEDS: REITs with any flagged filing float to top; rest follow.
+  // Sort feeds: those with any flagged filing float to top
   const sortedFeeds = [...reitFeeds].sort((f1, f2) => {
     const c1 = (byFeed[f1.id] || []).filter(isReitFlagged).length;
     const c2 = (byFeed[f2.id] || []).filter(isReitFlagged).length;
@@ -2404,9 +1656,9 @@ function renderReitPane() {
   body.innerHTML = sortedFeeds.map(feed => renderReitSection(feed, byFeed[feed.id] || [])).join('');
 }
 
-function renderReitSection(feed, articles) {
+function renderReitSection(feed, arts) {
   const isDisabled = !feed.url;
-  const flaggedCount = articles.filter(isReitFlagged).length;
+  const flaggedCount = arts.filter(isReitFlagged).length;
   const highlight = flaggedCount > 0
     ? `<span class="acquisition-badge" style="margin-left:8px;">${flaggedCount} deal${flaggedCount > 1 ? 's' : ''}</span>`
     : '';
@@ -2416,42 +1668,39 @@ function renderReitSection(feed, articles) {
       <span class="reit-section-name">${esc(feed.name)}</span>${highlight}
       ${isDisabled
         ? '<span class="reit-section-count">no feed configured</span>'
-        : `<span class="reit-section-count">${articles.length} filing${articles.length !== 1 ? 's' : ''}</span>`
+        : `<span class="reit-section-count">${arts.length} filing${arts.length !== 1 ? 's' : ''}</span>`
       }
     </div>
     ${isDisabled
-      ? '<div class="reit-section-disabled">Feed URL not yet configured — add it to REIT_FEEDS in worker.js</div>'
-      : articles.length === 0
-        ? '<div class="reit-empty">No filings found yet — click ⚡ Fetch now</div>'
-        : articles.map(a => renderReitRow(a)).join('')
+      ? '<div class="reit-section-disabled">Feed URL not configured</div>'
+      : arts.length === 0
+        ? '<div class="reit-empty">No filings yet — click ⚡ Fetch now</div>'
+        : arts.map(a => renderReitRow(a)).join('')
     }
   </div>`;
 }
 
 function renderReitRow(a) {
-  const read    = reitReadSet.has(a.id);
-  const cat     = reitCategory(a);
+  const read = reitReadSet.has(a.id);
+  const cat  = reitCategory(a);
   const isFlagged = cat !== null;
   const classes = ['reit-row', read ? 'read' : '', isFlagged ? 'acquisition' : ''].filter(Boolean).join(' ');
-  const badge   = cat === 'acquisition'
+  const badge = cat === 'acquisition'
     ? '<span class="acquisition-badge">Acquisition</span>'
     : cat === 'disposal'
       ? '<span class="acquisition-badge disposal">Disposal</span>'
       : '';
-
-  return `<div class="${classes}" onclick="openReitArticle('${a.id}')">
+  return `<div class="${classes}" onclick="openReitArticle('${esc(a.id)}')">
     <div>
-      <div class="reit-title">
-        ${esc(a.title)}${badge}
-      </div>
+      <div class="reit-title">${esc(a.title)}${badge}</div>
       <div class="reit-meta">${esc(a.description ? a.description.slice(0, 120) : '')}</div>
     </div>
     <div class="reit-time">${relativeTime(a.timestamp)}</div>
   </div>`;
 }
 
-// Opens filing in an in-app PDF/iframe modal so user can preview inline
-// and trigger a JP→EN title translation without leaving Dispatch.
+// Opens filing in an in-app content viewer (server-side fetch + Gemini
+// translation). No iframe → no X-Frame-Options blocking.
 function openReitArticle(id) {
   const a = reitArticles.find(x => x.id === id);
   if (!a) return;
@@ -2460,20 +1709,131 @@ function openReitArticle(id) {
   renderReitPane();
   if (a.link && a.link !== 'undefined') openPdfModal(a.link, a.title);
 }
+window.openReitArticle = openReitArticle;
 
-// Hook REIT tab activation into the existing tab-switch listener
-// (patch after init runs, since init registers the tab listener too)
-const _origTabSetup = document.querySelectorAll.bind(document);
-document.addEventListener('click', e => {
-  const btn = e.target.closest('.tab-btn');
-  if (btn && btn.dataset.tab === 'reits') {
-    ensureReitLoaded().then(renderReitPane);
+/* ==============================================================
+   PDF MODAL — no iframe. Uses backend fetchAndTranslate action.
+============================================================== */
+function openPdfModal(url, title) {
+  currentPdfUrl         = url;
+  currentPdfTitle       = title;
+  currentPdfTranslation = null;
+  currentPdfContent     = null;
+
+  document.getElementById('pdfModalTitle').textContent = title;
+  const trEl = document.getElementById('pdfModalTitleTranslated');
+  trEl.textContent = '';
+  trEl.classList.remove('show');
+
+  const btn = document.getElementById('pdfTranslateBtn');
+  btn.classList.remove('active');
+  btn.textContent = '🌐';
+
+  document.getElementById('pdfLoading').classList.remove('hidden');
+  document.getElementById('pdfError').classList.remove('show');
+  const body = document.getElementById('pdfTranslatedBody');
+  body.textContent = '';
+  body.classList.remove('show');
+  document.getElementById('pdfModalFallbackLink').href = url;
+
+  document.getElementById('pdfModal').classList.add('open');
+
+  // Kick off title translation + content fetch in parallel
+  translatePdfModalTitle();
+  fetchAndTranslateContent(url);
+}
+
+function closePdfModal() {
+  document.getElementById('pdfModal').classList.remove('open');
+  currentPdfUrl = null;
+  currentPdfTitle = null;
+  currentPdfTranslation = null;
+  currentPdfContent = null;
+}
+
+async function fetchAndTranslateContent(url) {
+  const loading = document.getElementById('pdfLoading');
+  const errBox  = document.getElementById('pdfError');
+  const errMsg  = document.getElementById('pdfErrorMsg');
+  const body    = document.getElementById('pdfTranslatedBody');
+
+  try {
+    const res = await fetch(GAS_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body:    JSON.stringify({ action: 'fetchAndTranslate', url }),
+    });
+    const data = await res.json();
+
+    if (!data.success) {
+      loading.classList.add('hidden');
+      errMsg.textContent = data.error || 'Unknown error';
+      errBox.classList.add('show');
+      return;
+    }
+
+    currentPdfContent = data.translation;
+    loading.classList.add('hidden');
+
+    const html = data.translation
+      .split(/\n{2,}/)
+      .map(p => `<p>${esc(p).replace(/\n/g, '<br>')}</p>`)
+      .join('');
+    const chars = data.sourceChars || 0;
+    body.innerHTML = html +
+      `<div class="pdf-source-meta">
+        <span>Translated ${chars.toLocaleString()} chars via Gemini</span>
+        <a href="${esc(url)}" target="_blank" rel="noopener" style="color:var(--accent);">View original ↗</a>
+      </div>`;
+    body.classList.add('show');
+  } catch (err) {
+    loading.classList.add('hidden');
+    errMsg.textContent = err.message || String(err);
+    errBox.classList.add('show');
   }
-});
+}
 
-// Wire the fetch button
-document.addEventListener('click', e => {
-  if (e.target.id === 'reitFetchBtn') silentReitFetch();
+async function translatePdfModalTitle() {
+  if (!currentPdfTitle) return;
+  const btn  = document.getElementById('pdfTranslateBtn');
+  const trEl = document.getElementById('pdfModalTitleTranslated');
+
+  if (currentPdfTranslation && trEl.classList.contains('show')) {
+    trEl.classList.remove('show');
+    btn.classList.remove('active');
+    return;
+  }
+  if (currentPdfTranslation) {
+    trEl.textContent = currentPdfTranslation;
+    trEl.classList.add('show');
+    btn.classList.add('active');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⏳';
+  try {
+    const res = await fetch(GAS_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body:    JSON.stringify({ action: 'translateText', text: currentPdfTitle }),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Translate failed');
+    currentPdfTranslation = data.translation;
+    trEl.textContent = data.translation;
+    trEl.classList.add('show');
+    btn.classList.add('active');
+  } catch (err) {
+    console.warn('Title translate failed:', err.message);
+  }
+  btn.disabled = false;
+  btn.textContent = '🌐';
+}
+
+// ── BOOT ───────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  init().catch(e => console.error('Boot failed:', e));
 });
 </script>
 </body>
