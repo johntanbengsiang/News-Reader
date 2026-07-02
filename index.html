@@ -1242,7 +1242,7 @@ async function syncFeedsToBackend(confirmClear) {
     if (!data.success) throw new Error(data.error || 'Unknown error');
   } catch (err) {
     console.error('Failed to sync feeds:', err);
-    toast('Failed to sync feeds to server');
+    toast('Sync failed: ' + (err.message || err));
   }
 }
 
