@@ -678,6 +678,47 @@
     .summary-pane { padding: 16px 14px 40px; }
     .tabs { padding: 0 14px; }
   }
+  /* ── ARCHIVE PANEL ──────────────────────────────────────────────── */
+  .archive-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 24px; border-bottom: 1px solid var(--rule);
+    background: var(--paper-2); flex-wrap: wrap;
+  }
+  .archive-search {
+    flex: 1; min-width: 160px;
+    font-family: var(--mono); font-size: 12px;
+    padding: 5px 10px; border: 1px solid var(--rule);
+    border-radius: var(--radius); background: var(--paper);
+    color: var(--ink); outline: none;
+  }
+  .archive-search:focus { border-color: var(--accent); }
+  #archivePanel {
+    display: none; border-top: 2px solid var(--rule);
+  }
+  #archivePanel.open { display: block; }
+  .archive-list { max-width: 900px; margin: 0 auto; padding: 0 24px 40px; }
+  .archive-month-header {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--ink-4);
+    padding: 14px 0 6px; border-bottom: 1px solid var(--rule); margin-bottom: 0;
+    position: sticky; top: 115px; background: var(--paper); z-index: 3;
+  }
+  .archive-row {
+    display: grid; grid-template-columns: 1fr auto;
+    gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--rule);
+    opacity: 0.65; cursor: pointer; transition: opacity 0.15s;
+  }
+  .archive-row:hover { opacity: 1; background: var(--paper-2);
+    margin: 0 -24px; padding-left: 24px; padding-right: 24px; }
+  .archive-title { font-size: 13px; font-weight: 400; color: var(--ink-2); line-height: 1.4; }
+  .archive-meta  { font-family: var(--mono); font-size: 10px; color: var(--ink-3); margin-top: 2px; }
+  .archive-time  { font-family: var(--mono); font-size: 10px; color: var(--ink-4);
+    padding-top: 3px; white-space: nowrap; }
+  .archive-empty { text-align: center; padding: 40px 24px; color: var(--ink-4);
+    font-size: 13px; }
+  .archive-pagination { display: flex; gap: 8px; justify-content: center;
+    padding: 16px 0 40px; }
+
   /* ── REIT PANE ───────────────────────────────────────────────── */
   .reit-toolbar {
     display: flex;
@@ -806,7 +847,172 @@
     font-family: var(--mono);
     padding: 10px 0;
   }
-
+  /* ── COMPACT ICON BUTTON (for ⚡ fetch, 📅 date) ──────────────── */
+  .toolbar-btn.icon-only {
+    padding: 5px 9px;
+    font-size: 13px;
+    line-height: 1;
+    min-width: 30px;
+  }
+  .toolbar-btn.icon-only.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  /* ── DATE FILTER POPOVER ──────────────────────────────────────── */
+  .date-popover-wrap { position: relative; display: inline-block; }
+  .date-popover {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 6px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.15);
+    padding: 12px;
+    z-index: 50;
+    min-width: 240px;
+  }
+  .date-popover.open { display: block; }
+  .date-popover label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--ink-4);
+    margin-bottom: 3px;
+    margin-top: 8px;
+  }
+  .date-popover label:first-child { margin-top: 0; }
+  .date-popover input[type="date"] {
+    width: 100%;
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 5px 8px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--paper-2);
+    color: var(--ink);
+    outline: none;
+  }
+  .date-popover input[type="date"]:focus { border-color: var(--accent); }
+  .date-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--rule);
+  }
+  .date-preset {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 4px 8px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--paper);
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+  .date-preset:hover { background: var(--paper-3); }
+  .date-popover-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--rule);
+  }
+  .date-popover-actions button { flex: 1; }
+  /* ── PDF VIEWER MODAL ─────────────────────────────────────────── */
+  .pdf-modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 300;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .pdf-modal-overlay.open { display: flex; }
+  .pdf-modal {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    width: 100%;
+    max-width: 1000px;
+    height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  .pdf-modal-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--rule);
+    flex-shrink: 0;
+  }
+  .pdf-modal-title {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .pdf-modal-title-original {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .pdf-modal-title-translated {
+    font-size: 11.5px;
+    color: var(--cluster-b);
+    font-style: italic;
+    display: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .pdf-modal-title-translated.show { display: block; }
+  .pdf-modal-body {
+    flex: 1;
+    background: var(--paper-2);
+    position: relative;
+    overflow: hidden;
+  }
+  .pdf-modal-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: white;
+  }
+  .pdf-modal-fallback {
+    display: none;
+    position: absolute;
+    inset: 0;
+    padding: 40px 24px;
+    text-align: center;
+    color: var(--ink-3);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .pdf-modal-fallback.show { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+  .pdf-modal-fallback a {
+    color: var(--accent);
+    font-weight: 500;
+  }
+  @media (max-width: 600px) {
+    .pdf-modal-overlay { padding: 0; }
+    .pdf-modal { height: 100vh; max-width: none; border-radius: 0; }
+    .pdf-modal-title-original { font-size: 12px; }
+  }
 </style>
 </head>
 <body>
@@ -840,8 +1046,27 @@
       <option value="all">All</option>
       <option value="read">Read</option>
     </select>
-    <button class="toolbar-btn" id="refreshBtn">↻ Refresh</button>
-    <button class="toolbar-btn" id="forceFetchBtn" title="Fetch all feeds right now (slower)">⚡ Fetch now</button>
+    <button class="toolbar-btn icon-only" id="forceFetchBtn" title="Fetch all feeds now">⚡</button>
+    <div class="date-popover-wrap">
+      <button class="toolbar-btn icon-only" id="dateFilterBtn" title="Filter by date">📅</button>
+      <div class="date-popover" id="datePopover">
+        <label for="dateFrom">From</label>
+        <input type="date" id="dateFrom">
+        <label for="dateTo">To</label>
+        <input type="date" id="dateTo">
+        <div class="date-presets">
+          <button class="date-preset" data-preset="today">Today</button>
+          <button class="date-preset" data-preset="yesterday">Yesterday</button>
+          <button class="date-preset" data-preset="7d">Last 7 days</button>
+          <button class="date-preset" data-preset="30d">Last 30 days</button>
+          <button class="date-preset" data-preset="90d">Last 90 days</button>
+        </div>
+        <div class="date-popover-actions">
+          <button class="toolbar-btn" id="clearDateFilter">Clear</button>
+          <button class="toolbar-btn primary" id="applyDateFilter">Apply</button>
+        </div>
+      </div>
+    </div>
     <button class="toolbar-btn" id="markAllReadBtn">Mark all read</button>
     <button class="toolbar-btn" id="openSettingsBtn">⚙ Feeds</button>
     <span class="article-count" id="lastFetchInfo" style="margin-left:auto;"></span>
@@ -975,6 +1200,28 @@
   </div>
 </div>
 
+<!-- ── PDF VIEWER MODAL (for REIT filings) ────────────────────────── -->
+<div class="pdf-modal-overlay" id="pdfModal">
+  <div class="pdf-modal">
+    <div class="pdf-modal-header">
+      <div class="pdf-modal-title">
+        <div class="pdf-modal-title-original" id="pdfModalTitle"></div>
+        <div class="pdf-modal-title-translated" id="pdfModalTitleTranslated"></div>
+      </div>
+      <button class="toolbar-btn icon-only" id="pdfTranslateBtn" title="Translate JP → EN">🌐</button>
+      <button class="toolbar-btn icon-only" id="pdfOpenExternalBtn" title="Open in new tab">↗</button>
+      <button class="modal-close" id="closePdfModal">✕</button>
+    </div>
+    <div class="pdf-modal-body">
+      <iframe class="pdf-modal-iframe" id="pdfModalIframe" src="about:blank"></iframe>
+      <div class="pdf-modal-fallback" id="pdfModalFallback">
+        <div>This document can't be displayed inline.</div>
+        <a id="pdfModalFallbackLink" href="#" target="_blank" rel="noopener">Open in a new tab →</a>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -998,6 +1245,7 @@ const STORAGE = {
   PROMPT:    'dispatch_prompt',
   SUMMARY:   'dispatch_summary',
 };
+
 const DEFAULT_PROMPT = `You are a senior geopolitical and financial analyst producing a concise daily briefing.
 
 Given a list of news headlines and their sources, write a structured summary covering:
@@ -1017,6 +1265,15 @@ let fetchErrors     = [];
 let pollTimer       = null;
 let isFetching      = false;
 const articleSummaries = {}; // id -> { text, loading, error }
+
+// Date filter state — null means "no filter". Values are epoch ms.
+let dateFilterFrom = null;
+let dateFilterTo   = null;
+
+// PDF modal state — remembers current URL for the "open externally" button
+let currentPdfUrl      = null;
+let currentPdfTitle    = null;
+let currentPdfTranslation = null;
 
 // ── INIT ─────────────────────────────────────────────────────────
 async function init() {
@@ -1065,7 +1322,7 @@ async function silentBackgroundFetch() {
   setStatus('live');
 }
 
-// ── LOAD FROM BACKEND (Apps Script) ───────────────────────────────
+// ── LOAD FROM BACKEND ─────────────────────────────────────────────
 async function loadFromBackend() {
   setStatus('fetching');
   try {
@@ -1129,6 +1386,128 @@ function loadLocalPrefs() {
 
 function saveRead() {
   localStorage.setItem(STORAGE.READ, JSON.stringify([...readSet]));
+  // NOTE: We no longer sync read state to the server for archiving.
+  // Everything now lives in the main feed (with a date-range filter),
+  // so triggering the worker's archive move would push articles out of
+  // the active store where the frontend can see them.
+}
+
+// ── SYNC READ STATE TO SERVER ──────────────────────────────────────
+// Sends the full readIds set to the Worker. The Worker uses this to move
+// articles older than 7 days out of the active Gist into monthly archive
+// buckets in the GitHub repo. This is the only trigger for archiving.
+async function syncReadToServer() {
+  if (!readSet.size) return;
+  try {
+    await fetch(GAS_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body:    JSON.stringify({ action: 'syncRead', readIds: [...readSet] }),
+    });
+  } catch (e) {
+    console.error('syncRead failed:', e);
+  }
+}
+
+// ── ARCHIVE PANEL ──────────────────────────────────────────────────
+let archivePage = 0;
+
+function toggleArchivePanel() {
+  const panel = document.getElementById('archivePanel');
+  const btn   = document.getElementById('toggleArchiveBtn');
+  const open  = panel.classList.toggle('open');
+  btn.classList.toggle('active', open);
+  if (open && document.getElementById('archiveList').children.length <= 1) {
+    // Populate month selector then load first page automatically
+    populateMonthSelector();
+    loadArchive(0);
+  }
+}
+
+function populateMonthSelector() {
+  const sel = document.getElementById('archiveMonthSelect');
+  sel.innerHTML = '<option value="">Last 6 months</option>';
+  const now = new Date();
+  for (let i = 0; i < 6; i++) {
+    const d   = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    const key = `${d.getUTCFullYear()}_${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+    const lbl = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    sel.innerHTML += `<option value="${key}">${lbl}</option>`;
+  }
+  sel.addEventListener('change', () => loadArchive(0));
+}
+
+async function loadArchive(page = 0) {
+  archivePage = page;
+  const list  = document.getElementById('archiveList');
+  const query = document.getElementById('archiveSearch').value.trim();
+  const month = document.getElementById('archiveMonthSelect').value;
+
+  list.innerHTML = '<div class="archive-empty">Loading…</div>';
+  document.getElementById('archivePagination').innerHTML = '';
+
+  const params = new URLSearchParams({ tab: 'archive', page });
+  if (query) params.set('q', query);
+  if (month) params.set('month', month);
+
+  try {
+    const res  = await fetch(GAS_URL + '?' + params.toString());
+    const data = await res.json();
+    renderArchiveList(data);
+  } catch (e) {
+    list.innerHTML = `<div class="archive-empty">Failed to load archive: ${e.message}</div>`;
+  }
+}
+
+function renderArchiveList(data) {
+  const list  = document.getElementById('archiveList');
+  const pager = document.getElementById('archivePagination');
+  const total = document.getElementById('archiveTotalCount');
+
+  total.textContent = data.total ? `${data.total} articles` : '';
+
+  if (!data.articles || !data.articles.length) {
+    list.innerHTML = '<div class="archive-empty">No archived articles yet. Articles are moved here after being read for 7+ days.</div>';
+    pager.innerHTML = '';
+    return;
+  }
+
+  // Group by month for display
+  const byMonth = {};
+  for (const a of data.articles) {
+    const d   = new Date(a.timestamp);
+    const key = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    if (!byMonth[key]) byMonth[key] = [];
+    byMonth[key].push(a);
+  }
+
+  let html = '';
+  for (const [month, arts] of Object.entries(byMonth)) {
+    html += `<div class="archive-month-header">${month}</div>`;
+    for (const a of arts) {
+      html += `
+        <div class="archive-row" onclick="window.open('${esc(a.link)}','_blank','noopener')">
+          <div>
+            <div class="archive-title">${esc(a.title)}</div>
+            <div class="archive-meta"><span style="color:var(--accent)">${esc(a.feedName)}</span>
+              ${a.description ? ' · ' + esc(a.description.slice(0, 100)) : ''}
+            </div>
+          </div>
+          <div class="archive-time">${relativeTime(a.timestamp)}</div>
+        </div>`;
+    }
+  }
+  list.innerHTML = html;
+
+  // Pagination
+  let pagerHtml = '';
+  if (archivePage > 0) {
+    pagerHtml += `<button class="toolbar-btn" onclick="loadArchive(${archivePage - 1})">← Prev</button>`;
+  }
+  if (data.hasMore) {
+    pagerHtml += `<button class="toolbar-btn" onclick="loadArchive(${archivePage + 1})">Next →</button>`;
+  }
+  pager.innerHTML = pagerHtml;
 }
 
 // ── EVENT LISTENERS ────────────────────────────────────────────────
@@ -1147,12 +1526,40 @@ function attachEventListeners() {
   });
 
   // toolbar
-  document.getElementById('refreshBtn').addEventListener('click', () => loadFromBackend().then(renderArticles));
   document.getElementById('forceFetchBtn').addEventListener('click', forceFetchNow);
   document.getElementById('markAllReadBtn').addEventListener('click', markAllRead);
   document.getElementById('openSettingsBtn').addEventListener('click', () => openModal('settingsModal'));
   document.getElementById('feedFilter').addEventListener('change', renderArticles);
   document.getElementById('readFilter').addEventListener('change', renderArticles);
+
+  // date filter popover
+  document.getElementById('dateFilterBtn').addEventListener('click', toggleDatePopover);
+  document.getElementById('applyDateFilter').addEventListener('click', applyDateFilter);
+  document.getElementById('clearDateFilter').addEventListener('click', clearDateFilter);
+  document.querySelectorAll('.date-preset').forEach(btn => {
+    btn.addEventListener('click', () => applyDatePreset(btn.dataset.preset));
+  });
+  // Close popover on outside click
+  document.addEventListener('click', e => {
+    const pop = document.getElementById('datePopover');
+    const btn = document.getElementById('dateFilterBtn');
+    if (!pop.classList.contains('open')) return;
+    if (pop.contains(e.target) || btn.contains(e.target)) return;
+    pop.classList.remove('open');
+  });
+
+  // PDF modal (REIT filings)
+  document.getElementById('closePdfModal').addEventListener('click', closePdfModal);
+  document.getElementById('pdfTranslateBtn').addEventListener('click', translatePdfModalTitle);
+  document.getElementById('pdfOpenExternalBtn').addEventListener('click', () => {
+    if (currentPdfUrl) window.open(currentPdfUrl, '_blank', 'noopener');
+  });
+  document.getElementById('pdfModal').addEventListener('click', e => {
+    if (e.target.id === 'pdfModal') closePdfModal();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.getElementById('pdfModal').classList.contains('open')) closePdfModal();
+  });
 
   // settings modal
   document.getElementById('closeSettings').addEventListener('click', () => closeModal('settingsModal'));
@@ -1235,7 +1642,7 @@ async function syncFeedsToBackend(confirmClear) {
   try {
     const res = await fetch(GAS_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // text/plain avoids CORS preflight
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'updateFeeds', feeds: feeds, confirmClear: !!confirmClear })
     });
     const data = await res.json();
@@ -1266,7 +1673,7 @@ async function addFeedToList(url, name) {
   renderFeedFilter();
   toast(`Added: ${name}. Fetching on server...`);
 
-  await syncFeedsToBackend(); // also triggers an immediate fetch server-side
+  await syncFeedsToBackend();
   await loadFromBackend();
   renderArticles();
 }
@@ -1374,7 +1781,7 @@ async function forceFetchNow() {
   setStatus('fetching');
   const btn = document.getElementById('forceFetchBtn');
   btn.disabled = true;
-  btn.textContent = 'Fetching…';
+  btn.textContent = '⏳';
 
   try {
     const res = await fetch(GAS_URL, {
@@ -1399,31 +1806,18 @@ async function forceFetchNow() {
   isFetching = false;
   setStatus('live');
   btn.disabled = false;
-  btn.textContent = '⚡ Fetch now';
+  btn.textContent = '⚡';
 }
 
 // ── POLLING ───────────────────────────────────────────────────────
-// Every 60s: re-pull whatever's cached in KV (cheap, picks up anything the
-// cron trigger or another tab fetched).
-// Every 5 minutes: also actively trigger a real RSS fetch, so freshness
-// doesn't depend entirely on however the Cloudflare cron trigger is
-// configured in the dashboard (which may be set to a longer interval, or
-// not configured at all).
-let pollTickCount = 0;
+// Auto-refresh cadence: fetch fresh RSS every minute so the feed stays
+// current without the user hitting the ⚡ button. Since this is now
+// running every 60s, the "Refresh" button became redundant and was
+// removed from the toolbar.
 function startPolling() {
   if (pollTimer) clearInterval(pollTimer);
-  pollTickCount = 0;
-
-  pollTimer = setInterval(async () => {
-    pollTickCount++;
-    if (pollTickCount % 5 === 0) {
-      // Every 5th tick (~5 minutes): actively fetch fresh RSS
-      silentBackgroundFetch();
-    } else {
-      // Otherwise just re-pull whatever's already cached
-      await loadFromBackend();
-      renderArticles();
-    }
+  pollTimer = setInterval(() => {
+    silentBackgroundFetch();
   }, 60000);
 }
 
@@ -1481,9 +1875,12 @@ function renderArticles() {
   if (feedId !== 'all') filtered = filtered.filter(a => a.feedId === feedId);
   if (readMode === 'unread') filtered = filtered.filter(a => !readSet.has(a.id));
   if (readMode === 'read')   filtered = filtered.filter(a => readSet.has(a.id));
+  if (dateFilterFrom !== null) filtered = filtered.filter(a => a.timestamp >= dateFilterFrom);
+  if (dateFilterTo   !== null) filtered = filtered.filter(a => a.timestamp <= dateFilterTo);
 
   const count = document.getElementById('articleCount');
-  count.textContent = `${filtered.length} article${filtered.length !== 1 ? 's' : ''}`;
+  const filterLabel = (dateFilterFrom !== null || dateFilterTo !== null) ? ' · date filtered' : '';
+  count.textContent = `${filtered.length} article${filtered.length !== 1 ? 's' : ''}${filterLabel}`;
   renderLastFetchInfo();
 
   const list = document.getElementById('articleList');
@@ -1619,6 +2016,126 @@ function clearAll() {
   readSet = new Set();
   renderArticles();
   toast('Local data cleared');
+}
+
+// ── DATE FILTER ────────────────────────────────────────────────────
+function toggleDatePopover(e) {
+  e.stopPropagation();
+  document.getElementById('datePopover').classList.toggle('open');
+}
+
+function applyDatePreset(preset) {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm   = String(now.getMonth() + 1).padStart(2, '0');
+  const dd   = String(now.getDate()).padStart(2, '0');
+  const toStr = `${yyyy}-${mm}-${dd}`;
+  let fromDate;
+  if (preset === 'today')      fromDate = new Date(yyyy, now.getMonth(), now.getDate());
+  else if (preset === 'yesterday') { fromDate = new Date(yyyy, now.getMonth(), now.getDate() - 1); document.getElementById('dateTo').value = fmtDateInput(fromDate); }
+  else if (preset === '7d')    fromDate = new Date(now.getTime() - 7 * 86400000);
+  else if (preset === '30d')   fromDate = new Date(now.getTime() - 30 * 86400000);
+  else if (preset === '90d')   fromDate = new Date(now.getTime() - 90 * 86400000);
+  document.getElementById('dateFrom').value = fmtDateInput(fromDate);
+  if (preset !== 'yesterday') document.getElementById('dateTo').value = toStr;
+  applyDateFilter();
+}
+
+function fmtDateInput(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function applyDateFilter() {
+  const fromVal = document.getElementById('dateFrom').value;
+  const toVal   = document.getElementById('dateTo').value;
+  dateFilterFrom = fromVal ? new Date(fromVal + 'T00:00:00').getTime() : null;
+  dateFilterTo   = toVal   ? new Date(toVal   + 'T23:59:59').getTime() : null;
+  document.getElementById('dateFilterBtn').classList.toggle('active', dateFilterFrom !== null || dateFilterTo !== null);
+  document.getElementById('datePopover').classList.remove('open');
+  renderArticles();
+}
+
+function clearDateFilter() {
+  dateFilterFrom = null;
+  dateFilterTo   = null;
+  document.getElementById('dateFrom').value = '';
+  document.getElementById('dateTo').value   = '';
+  document.getElementById('dateFilterBtn').classList.remove('active');
+  document.getElementById('datePopover').classList.remove('open');
+  renderArticles();
+}
+
+// ── PDF MODAL (REIT filings) ───────────────────────────────────────
+function openPdfModal(url, title) {
+  currentPdfUrl         = url;
+  currentPdfTitle       = title;
+  currentPdfTranslation = null;
+  document.getElementById('pdfModalTitle').textContent = title;
+  const trEl = document.getElementById('pdfModalTitleTranslated');
+  trEl.textContent = '';
+  trEl.classList.remove('show');
+  const iframe   = document.getElementById('pdfModalIframe');
+  const fallback = document.getElementById('pdfModalFallback');
+  fallback.classList.remove('show');
+  document.getElementById('pdfModalFallbackLink').href = url;
+  // Try inline embed. Many yanoshin / TDNet PDFs allow iframe. If the target
+  // sets X-Frame-Options: DENY the iframe will be blank — we show a fallback
+  // link after a short delay in that case (we can't reliably detect the
+  // block cross-origin, so we just always populate the fallback link).
+  iframe.src = url;
+  document.getElementById('pdfModal').classList.add('open');
+}
+
+function closePdfModal() {
+  document.getElementById('pdfModal').classList.remove('open');
+  // Blank the iframe to stop any playing content / free memory
+  document.getElementById('pdfModalIframe').src = 'about:blank';
+  currentPdfUrl = null;
+  currentPdfTitle = null;
+  currentPdfTranslation = null;
+}
+
+// Translate the filing title (Japanese → English) via the Worker + Gemini.
+// The PDF itself we can't easily translate inline (binary, external origin),
+// so the title translation is the most valuable text signal.
+async function translatePdfModalTitle() {
+  if (!currentPdfTitle) return;
+  const btn = document.getElementById('pdfTranslateBtn');
+  const trEl = document.getElementById('pdfModalTitleTranslated');
+
+  // Toggle off if already showing
+  if (currentPdfTranslation && trEl.classList.contains('show')) {
+    trEl.classList.remove('show');
+    btn.classList.remove('active');
+    return;
+  }
+  // Already fetched → just re-show
+  if (currentPdfTranslation) {
+    trEl.textContent = currentPdfTranslation;
+    trEl.classList.add('show');
+    btn.classList.add('active');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⏳';
+  try {
+    const res = await fetch(GAS_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body:    JSON.stringify({ action: 'translateText', text: currentPdfTitle })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Translate failed');
+    currentPdfTranslation = data.translation;
+    trEl.textContent = data.translation;
+    trEl.classList.add('show');
+    btn.classList.add('active');
+  } catch (err) {
+    toast('Translate failed: ' + err.message);
+  }
+  btn.disabled = false;
+  btn.textContent = '🌐';
 }
 
 // ── PER-ARTICLE SUMMARISE ──────────────────────────────────────────
@@ -1840,15 +2357,28 @@ async function silentReitFetch() {
 }
 
 // ── RENDER ────────────────────────────────────────────────────────────
+// Helper: a filing is "flagged" if it's classified as acquisition OR disposal.
+// We support both the legacy boolean `a.acquisition` field and the newer
+// `a.category` field written by the current worker.
+function reitCategory(a) {
+  if (a.category === 'acquisition' || a.category === 'disposal') return a.category;
+  if (a.acquisition) return 'acquisition';
+  return null;
+}
+function isReitFlagged(a) { return reitCategory(a) !== null; }
+
 function renderReitPane() {
   const body = document.getElementById('reitBody');
   if (!body) return;
 
-  // Count only active (non-acquisition flagged) vs acquisition filings
-  const acqCount = reitArticles.filter(a => a.acquisition).length;
+  // Count acquisitions and disposals separately for the header summary
+  const acqCount = reitArticles.filter(a => reitCategory(a) === 'acquisition').length;
+  const dispCount = reitArticles.filter(a => reitCategory(a) === 'disposal').length;
   const total    = reitArticles.length;
-  document.getElementById('reitCount').textContent =
-    `${total} filing${total !== 1 ? 's' : ''}${acqCount > 0 ? ` · ${acqCount} acquisition${acqCount > 1 ? 's' : ''}` : ''}`;
+  const parts = [`${total} filing${total !== 1 ? 's' : ''}`];
+  if (acqCount > 0)  parts.push(`${acqCount} acquisition${acqCount > 1 ? 's' : ''}`);
+  if (dispCount > 0) parts.push(`${dispCount} disposal${dispCount > 1 ? 's' : ''}`);
+  document.getElementById('reitCount').textContent = parts.join(' · ');
 
   if (!total && reitFeeds.filter(f => f.url).length === 0) {
     body.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🏢</div>
@@ -1856,30 +2386,47 @@ function renderReitPane() {
     return;
   }
 
-  // Group articles by feed, sorted newest first within each group
+  // Group articles by feed
   const byFeed = {};
   for (const f of reitFeeds) byFeed[f.id] = [];
   for (const a of reitArticles) {
     if (byFeed[a.feedId]) byFeed[a.feedId].push(a);
   }
 
-  // Sort each group: acquisitions first, then by date
+  // Sort each group: flagged (acquisition/disposal) first, then by date
   for (const id in byFeed) {
     byFeed[id].sort((a, b) => {
-      if (a.acquisition !== b.acquisition) return a.acquisition ? -1 : 1;
+      const fa = isReitFlagged(a) ? 1 : 0;
+      const fb = isReitFlagged(b) ? 1 : 0;
+      if (fa !== fb) return fb - fa;
       return b.timestamp - a.timestamp;
     });
   }
 
-  body.innerHTML = reitFeeds.map(feed => renderReitSection(feed, byFeed[feed.id] || [])).join('');
+  // Sort the FEEDS themselves: REITs with any acquisition/disposal float
+  // to the top, the rest follow. Within each bucket, keep the REIT_FEEDS
+  // config order (so disabled/empty feeds stay grouped at the bottom).
+  const sortedFeeds = [...reitFeeds].sort((f1, f2) => {
+    const c1 = (byFeed[f1.id] || []).filter(isReitFlagged).length;
+    const c2 = (byFeed[f2.id] || []).filter(isReitFlagged).length;
+    if ((c1 > 0) !== (c2 > 0)) return c1 > 0 ? -1 : 1;      // any flagged? top
+    if (c1 !== c2) return c2 - c1;                          // more flagged? higher
+    return 0;                                               // preserve config order
+  });
+
+  body.innerHTML = sortedFeeds.map(feed => renderReitSection(feed, byFeed[feed.id] || [])).join('');
 }
 
 function renderReitSection(feed, articles) {
   const isDisabled = !feed.url;
+  const flaggedCount = articles.filter(isReitFlagged).length;
+  const highlight = flaggedCount > 0
+    ? `<span class="acquisition-badge" style="margin-left:8px;">${flaggedCount} deal${flaggedCount > 1 ? 's' : ''}</span>`
+    : '';
   return `
   <div class="reit-section">
     <div class="reit-section-header">
-      <span class="reit-section-name">${esc(feed.name)}</span>
+      <span class="reit-section-name">${esc(feed.name)}</span>${highlight}
       ${isDisabled
         ? '<span class="reit-section-count">no feed configured</span>'
         : `<span class="reit-section-count">${articles.length} filing${articles.length !== 1 ? 's' : ''}</span>`
@@ -1896,13 +2443,19 @@ function renderReitSection(feed, articles) {
 
 function renderReitRow(a) {
   const read    = reitReadSet.has(a.id);
-  const isAcq   = a.acquisition;
-  const classes = ['reit-row', read ? 'read' : '', isAcq ? 'acquisition' : ''].filter(Boolean).join(' ');
+  const cat     = reitCategory(a);
+  const isFlagged = cat !== null;
+  const classes = ['reit-row', read ? 'read' : '', isFlagged ? 'acquisition' : ''].filter(Boolean).join(' ');
+  const badge   = cat === 'acquisition'
+    ? '<span class="acquisition-badge">Acquisition</span>'
+    : cat === 'disposal'
+      ? '<span class="acquisition-badge" style="background:var(--cluster-b);">Disposal</span>'
+      : '';
 
-  return `<div class="${classes}" onclick="openReitArticle('${a.id}','${esc(a.link)}')">
+  return `<div class="${classes}" onclick="openReitArticle('${a.id}')">
     <div>
       <div class="reit-title">
-        ${esc(a.title)}${isAcq ? '<span class="acquisition-badge">Acquisition</span>' : ''}
+        ${esc(a.title)}${badge}
       </div>
       <div class="reit-meta">${esc(a.description ? a.description.slice(0, 120) : '')}</div>
     </div>
@@ -1910,11 +2463,16 @@ function renderReitRow(a) {
   </div>`;
 }
 
-function openReitArticle(id, url) {
+// Opens the filing PDF/page in an in-app modal (rather than a new tab) so
+// the user can preview inline and trigger Gemini JP→EN title translation
+// without leaving Dispatch.
+function openReitArticle(id) {
+  const a = reitArticles.find(x => x.id === id);
+  if (!a) return;
   reitReadSet.add(id);
   saveReitRead();
   renderReitPane();
-  if (url && url !== 'undefined') window.open(url, '_blank', 'noopener');
+  if (a.link && a.link !== 'undefined') openPdfModal(a.link, a.title);
 }
 
 // Hook REIT tab activation into the existing tab-switch listener
