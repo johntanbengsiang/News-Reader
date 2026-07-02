@@ -2436,7 +2436,7 @@ function renderReitRow(a) {
   const badge   = cat === 'acquisition'
     ? '<span class="acquisition-badge">Acquisition</span>'
     : cat === 'disposal'
-      ? '<span class="acquisition-badge" style="background:var(--cluster-b);">Disposal</span>'
+      ? '<span class="acquisition-badge disposal">Disposal</span>'
       : '';
 
   return `<div class="${classes}" onclick="openReitArticle('${a.id}')">
