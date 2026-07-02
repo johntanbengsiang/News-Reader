@@ -847,7 +847,7 @@
     font-family: var(--mono);
     padding: 10px 0;
   }
-  /* ── COMPACT ICON BUTTON (for ⚡ fetch, 📅 date) ──────────────── */
+  /* ── COMPACT ICON BUTTON (⚡ fetch, 📅 date) ──────────────────── */
   .toolbar-btn.icon-only {
     padding: 5px 9px;
     font-size: 13px;
@@ -1270,9 +1270,9 @@ const articleSummaries = {}; // id -> { text, loading, error }
 let dateFilterFrom = null;
 let dateFilterTo   = null;
 
-// PDF modal state — remembers current URL for the "open externally" button
-let currentPdfUrl      = null;
-let currentPdfTitle    = null;
+// PDF modal state
+let currentPdfUrl         = null;
+let currentPdfTitle       = null;
 let currentPdfTranslation = null;
 
 // ── INIT ─────────────────────────────────────────────────────────
@@ -1387,9 +1387,7 @@ function loadLocalPrefs() {
 function saveRead() {
   localStorage.setItem(STORAGE.READ, JSON.stringify([...readSet]));
   // NOTE: We no longer sync read state to the server for archiving.
-  // Everything now lives in the main feed (with a date-range filter),
-  // so triggering the worker's archive move would push articles out of
-  // the active store where the frontend can see them.
+  // Everything now lives in the main feed (with a date-range filter).
 }
 
 // ── SYNC READ STATE TO SERVER ──────────────────────────────────────
@@ -1539,7 +1537,6 @@ function attachEventListeners() {
   document.querySelectorAll('.date-preset').forEach(btn => {
     btn.addEventListener('click', () => applyDatePreset(btn.dataset.preset));
   });
-  // Close popover on outside click
   document.addEventListener('click', e => {
     const pop = document.getElementById('datePopover');
     const btn = document.getElementById('dateFilterBtn');
@@ -1810,10 +1807,9 @@ async function forceFetchNow() {
 }
 
 // ── POLLING ───────────────────────────────────────────────────────
-// Auto-refresh cadence: fetch fresh RSS every minute so the feed stays
-// current without the user hitting the ⚡ button. Since this is now
-// running every 60s, the "Refresh" button became redundant and was
-// removed from the toolbar.
+// Auto-refresh: fetch fresh RSS every minute so the feed stays current.
+// This is why the "Refresh" button was removed from the toolbar — every
+// 60s the frontend now triggers a real backend fetch itself.
 function startPolling() {
   if (pollTimer) clearInterval(pollTimer);
   pollTimer = setInterval(() => {
@@ -2024,25 +2020,23 @@ function toggleDatePopover(e) {
   document.getElementById('datePopover').classList.toggle('open');
 }
 
-function applyDatePreset(preset) {
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm   = String(now.getMonth() + 1).padStart(2, '0');
-  const dd   = String(now.getDate()).padStart(2, '0');
-  const toStr = `${yyyy}-${mm}-${dd}`;
-  let fromDate;
-  if (preset === 'today')      fromDate = new Date(yyyy, now.getMonth(), now.getDate());
-  else if (preset === 'yesterday') { fromDate = new Date(yyyy, now.getMonth(), now.getDate() - 1); document.getElementById('dateTo').value = fmtDateInput(fromDate); }
-  else if (preset === '7d')    fromDate = new Date(now.getTime() - 7 * 86400000);
-  else if (preset === '30d')   fromDate = new Date(now.getTime() - 30 * 86400000);
-  else if (preset === '90d')   fromDate = new Date(now.getTime() - 90 * 86400000);
-  document.getElementById('dateFrom').value = fmtDateInput(fromDate);
-  if (preset !== 'yesterday') document.getElementById('dateTo').value = toStr;
-  applyDateFilter();
-}
-
 function fmtDateInput(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function applyDatePreset(preset) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let fromDate = today;
+  let toDate   = today;
+  if (preset === 'today')      { fromDate = today; toDate = today; }
+  else if (preset === 'yesterday') { fromDate = new Date(today.getTime() - 86400000); toDate = fromDate; }
+  else if (preset === '7d')    { fromDate = new Date(now.getTime() - 7 * 86400000); toDate = today; }
+  else if (preset === '30d')   { fromDate = new Date(now.getTime() - 30 * 86400000); toDate = today; }
+  else if (preset === '90d')   { fromDate = new Date(now.getTime() - 90 * 86400000); toDate = today; }
+  document.getElementById('dateFrom').value = fmtDateInput(fromDate);
+  document.getElementById('dateTo').value = fmtDateInput(toDate);
+  applyDateFilter();
 }
 
 function applyDateFilter() {
@@ -2074,21 +2068,21 @@ function openPdfModal(url, title) {
   const trEl = document.getElementById('pdfModalTitleTranslated');
   trEl.textContent = '';
   trEl.classList.remove('show');
+  const btn = document.getElementById('pdfTranslateBtn');
+  btn.classList.remove('active');
+  btn.textContent = '🌐';
   const iframe   = document.getElementById('pdfModalIframe');
   const fallback = document.getElementById('pdfModalFallback');
   fallback.classList.remove('show');
   document.getElementById('pdfModalFallbackLink').href = url;
-  // Try inline embed. Many yanoshin / TDNet PDFs allow iframe. If the target
-  // sets X-Frame-Options: DENY the iframe will be blank — we show a fallback
-  // link after a short delay in that case (we can't reliably detect the
-  // block cross-origin, so we just always populate the fallback link).
+  // Try inline embed. Sites that set X-Frame-Options: DENY will show a
+  // blank iframe — user can fall back to the ↗ button in the header.
   iframe.src = url;
   document.getElementById('pdfModal').classList.add('open');
 }
 
 function closePdfModal() {
   document.getElementById('pdfModal').classList.remove('open');
-  // Blank the iframe to stop any playing content / free memory
   document.getElementById('pdfModalIframe').src = 'about:blank';
   currentPdfUrl = null;
   currentPdfTitle = null;
@@ -2096,11 +2090,9 @@ function closePdfModal() {
 }
 
 // Translate the filing title (Japanese → English) via the Worker + Gemini.
-// The PDF itself we can't easily translate inline (binary, external origin),
-// so the title translation is the most valuable text signal.
 async function translatePdfModalTitle() {
   if (!currentPdfTitle) return;
-  const btn = document.getElementById('pdfTranslateBtn');
+  const btn  = document.getElementById('pdfTranslateBtn');
   const trEl = document.getElementById('pdfModalTitleTranslated');
 
   // Toggle off if already showing
@@ -2109,7 +2101,6 @@ async function translatePdfModalTitle() {
     btn.classList.remove('active');
     return;
   }
-  // Already fetched → just re-show
   if (currentPdfTranslation) {
     trEl.textContent = currentPdfTranslation;
     trEl.classList.add('show');
@@ -2320,7 +2311,7 @@ async function ensureReitLoaded() {
 
 async function loadReitData() {
   try {
-    const res  = await fetch(GAS_URL.replace(/\/$/, '') + '?tab=reits');
+    const res  = await fetch(GAS_URL.replace(/\/$/, '') + '?tab=reit');
     const data = await res.json();
     reitFeeds    = data.feeds    || [];
     reitArticles = data.articles || [];
@@ -2357,9 +2348,8 @@ async function silentReitFetch() {
 }
 
 // ── RENDER ────────────────────────────────────────────────────────────
-// Helper: a filing is "flagged" if it's classified as acquisition OR disposal.
-// We support both the legacy boolean `a.acquisition` field and the newer
-// `a.category` field written by the current worker.
+// Categorisation helpers. Worker stores category as `a.category`
+// ('acquisition' | 'disposal'); older data may have `a.acquisition` boolean.
 function reitCategory(a) {
   if (a.category === 'acquisition' || a.category === 'disposal') return a.category;
   if (a.acquisition) return 'acquisition';
@@ -2371,10 +2361,9 @@ function renderReitPane() {
   const body = document.getElementById('reitBody');
   if (!body) return;
 
-  // Count acquisitions and disposals separately for the header summary
-  const acqCount = reitArticles.filter(a => reitCategory(a) === 'acquisition').length;
+  const acqCount  = reitArticles.filter(a => reitCategory(a) === 'acquisition').length;
   const dispCount = reitArticles.filter(a => reitCategory(a) === 'disposal').length;
-  const total    = reitArticles.length;
+  const total     = reitArticles.length;
   const parts = [`${total} filing${total !== 1 ? 's' : ''}`];
   if (acqCount > 0)  parts.push(`${acqCount} acquisition${acqCount > 1 ? 's' : ''}`);
   if (dispCount > 0) parts.push(`${dispCount} disposal${dispCount > 1 ? 's' : ''}`);
@@ -2403,15 +2392,13 @@ function renderReitPane() {
     });
   }
 
-  // Sort the FEEDS themselves: REITs with any acquisition/disposal float
-  // to the top, the rest follow. Within each bucket, keep the REIT_FEEDS
-  // config order (so disabled/empty feeds stay grouped at the bottom).
+  // Sort FEEDS: REITs with any flagged filing float to top; rest follow.
   const sortedFeeds = [...reitFeeds].sort((f1, f2) => {
     const c1 = (byFeed[f1.id] || []).filter(isReitFlagged).length;
     const c2 = (byFeed[f2.id] || []).filter(isReitFlagged).length;
-    if ((c1 > 0) !== (c2 > 0)) return c1 > 0 ? -1 : 1;      // any flagged? top
-    if (c1 !== c2) return c2 - c1;                          // more flagged? higher
-    return 0;                                               // preserve config order
+    if ((c1 > 0) !== (c2 > 0)) return c1 > 0 ? -1 : 1;
+    if (c1 !== c2) return c2 - c1;
+    return 0;
   });
 
   body.innerHTML = sortedFeeds.map(feed => renderReitSection(feed, byFeed[feed.id] || [])).join('');
@@ -2463,9 +2450,8 @@ function renderReitRow(a) {
   </div>`;
 }
 
-// Opens the filing PDF/page in an in-app modal (rather than a new tab) so
-// the user can preview inline and trigger Gemini JP→EN title translation
-// without leaving Dispatch.
+// Opens filing in an in-app PDF/iframe modal so user can preview inline
+// and trigger a JP→EN title translation without leaving Dispatch.
 function openReitArticle(id) {
   const a = reitArticles.find(x => x.id === id);
   if (!a) return;
