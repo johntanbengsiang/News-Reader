@@ -529,19 +529,21 @@
     overflow: hidden;
   }
   .txn-header {
-    display: flex; justify-content: space-between; align-items: flex-end;
+    display: flex; justify-content: space-between; align-items: flex-start;
     gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--rule);
-    background: var(--paper-3);
+    background: var(--paper-3); flex-wrap: wrap;
   }
   .txn-title { font-family: var(--serif); font-size: 15px; font-weight: 600; color: var(--ink); }
   .txn-sub   { font-family: var(--mono); font-size: 10px; color: var(--ink-3); margin-top: 2px; }
-  .txn-filter { display: flex; gap: 4px; }
+  .txn-filter-group { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+  .txn-filter { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
   .txn-chip {
     background: var(--paper); border: 1px solid var(--rule);
     color: var(--ink-2); font-family: var(--mono); font-size: 10px;
     padding: 4px 8px; border-radius: var(--radius); cursor: pointer;
     text-transform: uppercase; letter-spacing: 0.5px;
   }
+  .txn-chip:hover { border-color: var(--ink-3); color: var(--ink); }
   .txn-chip.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
   .txn-scroll { max-height: 340px; overflow: auto; }
   .txn-table { width: 100%; border-collapse: collapse; font-size: 12px; font-family: var(--sans); }
@@ -567,6 +569,11 @@
   .txn-empty { text-align: center; color: var(--ink-3); font-family: var(--mono); font-size: 11px; padding: 24px !important; }
   .txn-link { color: var(--accent); text-decoration: none; font-family: var(--mono); font-size: 10px; }
   .txn-link:hover { text-decoration: underline; }
+  .txn-mixed-tag {
+    display: inline-block; margin-left: 4px; padding: 0 4px;
+    font-family: var(--mono); font-size: 8px; color: var(--ink-3);
+    border: 1px solid var(--rule); border-radius: 2px; text-transform: uppercase;
+  }
 
   /* ── REIT PANE ─────────────────────────────────────────────── */
   .reit-toolbar {
@@ -900,10 +907,27 @@
         <div class="txn-title">Recent transactions</div>
         <div class="txn-sub" id="txnMeta">—</div>
       </div>
-      <div class="txn-filter">
-        <button class="txn-chip active" data-txn-filter="all">All</button>
-        <button class="txn-chip" data-txn-filter="acquisition">Acquisitions</button>
-        <button class="txn-chip" data-txn-filter="disposal">Disposals</button>
+      <div class="txn-filter-group">
+        <div class="txn-filter">
+          <button class="txn-chip active" data-txn-type="all">All types</button>
+          <button class="txn-chip" data-txn-type="acquisition">Acquisitions</button>
+          <button class="txn-chip" data-txn-type="disposal">Disposals</button>
+        </div>
+        <div class="txn-filter">
+          <button class="txn-chip active" data-txn-asset="all">Any asset</button>
+          <button class="txn-chip" data-txn-asset="hotel" title="Hotel + mixed-use / serviced apts with hotel component">Hotel</button>
+          <button class="txn-chip" data-txn-asset="office" title="Office + mixed-use with office">Office</button>
+          <button class="txn-chip" data-txn-asset="retail" title="Retail + mixed-use with retail">Retail</button>
+          <button class="txn-chip" data-txn-asset="logistics">Logistics</button>
+          <button class="txn-chip" data-txn-asset="residential" title="Residential + mixed-use with resi">Residential</button>
+        </div>
+        <div class="txn-filter">
+          <button class="txn-chip active" data-txn-loc="all">Any location</button>
+          <button class="txn-chip" data-txn-loc="tokyo" title="Tokyo prefecture (23 wards + Tama)">Tokyo</button>
+          <button class="txn-chip" data-txn-loc="osaka">Osaka</button>
+          <button class="txn-chip" data-txn-loc="kansai" title="Osaka / Kyoto / Kobe / Hyogo / Nara">Kansai</button>
+          <button class="txn-chip" data-txn-loc="other-jp" title="Regional Japan outside Tokyo/Kansai">Other JP</button>
+        </div>
       </div>
     </div>
     <div class="txn-scroll">
@@ -1035,7 +1059,9 @@ let reitReadSet      = new Set(JSON.parse(localStorage.getItem('dispatch_reit_re
 let reitFetching     = false;
 let reitExtracting   = false;
 let reitLoaded       = false;
-let txnFilter        = 'all';
+let txnFilterType    = 'all';   // all | acquisition | disposal
+let txnFilterAsset   = 'all';   // all | hotel | office | retail | logistics | residential
+let txnFilterLoc     = 'all';   // all | tokyo | osaka | kansai | other-jp
 
 // ── UTIL ───────────────────────────────────────────────────────
 function esc(str) {
@@ -1304,15 +1330,20 @@ function attachEventListeners() {
   document.getElementById('reitFetchBtn').addEventListener('click', silentReitFetch);
   document.getElementById('reitExtractBtn').addEventListener('click', runReitExtract);
 
-  // Txn table filter chips
-  document.querySelectorAll('.txn-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      document.querySelectorAll('.txn-chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      txnFilter = chip.dataset.txnFilter;
-      renderTxnTable();
+  // Txn table filter chips — three independent groups (type / asset / location)
+  function bindChipGroup(attr, setter) {
+    document.querySelectorAll(`.txn-chip[data-txn-${attr}]`).forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll(`.txn-chip[data-txn-${attr}]`).forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        setter(chip.dataset[`txn${attr.charAt(0).toUpperCase()}${attr.slice(1)}`]);
+        renderTxnTable();
+      });
     });
-  });
+  }
+  bindChipGroup('type',  v => txnFilterType  = v);
+  bindChipGroup('asset', v => txnFilterAsset = v);
+  bindChipGroup('loc',   v => txnFilterLoc   = v);
 
   // Close modals on overlay click
   ['settingsModal', 'promptModal'].forEach(id => {
@@ -1677,48 +1708,104 @@ function fmtTxnDate(iso) {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
 }
 
+// Portfolio filter matcher — "lenient" mode: mixed-use assets still show
+// when a single-class filter is applied, because a mixed-use property with
+// e.g. a hotel component is still relevant to a hotel-focused analyst.
+function matchAssetClass(t, filter) {
+  if (filter === 'all') return true;
+  const ac = (t.assetClass || '').toLowerCase();
+  if (!ac) return false;
+  // Explicit mixed-use inclusion for each class
+  if (filter === 'hotel') {
+    return ac.includes('hotel') || ac.includes('hospitality') || ac.includes('lodging')
+      || ac.includes('serviced') || (ac.includes('mixed') && !ac.includes('mixed-use ('));
+    // The second clause catches vague "mixed-use" labels. If Gemini gave us
+    // "Mixed-use (office)" specifically without hotel, the third check below
+    // won't match, so we need the (hotel) tag test:
+  }
+  if (filter === 'office')      return ac.includes('office')      || (ac.includes('mixed') && !hasSpecificOther(ac, 'office'));
+  if (filter === 'retail')      return ac.includes('retail')      || ac.includes('commercial')
+                                       || (ac.includes('mixed') && !hasSpecificOther(ac, 'retail'));
+  if (filter === 'residential') return ac.includes('residential') || ac.includes('apartment') || ac.includes('rental housing')
+                                       || (ac.includes('mixed') && !hasSpecificOther(ac, 'residential'));
+  if (filter === 'logistics')   return ac.includes('logistics')   || ac.includes('warehouse') || ac.includes('industrial');
+  return ac.includes(filter);
+}
+// Returns true if the mixed-use label explicitly names a different primary
+// component than the one we're filtering for, so we can exclude it.
+function hasSpecificOther(ac, wantClass) {
+  const m = ac.match(/mixed[- ]?use\s*\(([^)]+)\)/);
+  if (!m) return false;
+  return !m[1].toLowerCase().includes(wantClass);
+}
+
+function matchLocation(t, filter) {
+  if (filter === 'all') return true;
+  const loc = (t.location || '').toLowerCase();
+  if (!loc) return false;
+  if (filter === 'tokyo')    return loc.includes('tokyo') || loc.includes('東京');
+  if (filter === 'osaka')    return loc.includes('osaka') || loc.includes('大阪');
+  if (filter === 'kansai')   return /osaka|kyoto|kobe|hyogo|nara|大阪|京都|神戸|兵庫|奈良/.test(loc);
+  if (filter === 'other-jp') {
+    // Anything Japanese that isn't Tokyo/Kansai and isn't clearly overseas
+    if (loc.includes('tokyo') || loc.includes('東京')) return false;
+    if (/osaka|kyoto|kobe|hyogo|nara|大阪|京都|神戸|兵庫|奈良/.test(loc)) return false;
+    if (/singapore|london|paris|new york|sydney|melbourne|amsterdam|hong kong/.test(loc)) return false;
+    return true;
+  }
+  return true;
+}
+
 function renderTxnTable() {
   const tbody = document.getElementById('txnBody');
   const meta  = document.getElementById('txnMeta');
   if (!tbody) return;
 
   const all = (reitTransactions || []).filter(t => !t.noExtract);
-  const rows = txnFilter === 'all'
-    ? all
-    : all.filter(t => t.transactionType === txnFilter);
+  const rows = all
+    .filter(t => txnFilterType  === 'all' || t.transactionType === txnFilterType)
+    .filter(t => matchAssetClass(t, txnFilterAsset))
+    .filter(t => matchLocation(t, txnFilterLoc));
 
   const runTs = reitExtractRun
     ? `Last run ${relativeTime(new Date(reitExtractRun).getTime())}`
     : 'Never run — click ✦ Extract deals';
-  meta.textContent = `${all.length} deal${all.length === 1 ? '' : 's'} · ${runTs}`;
+  const filterBits = [];
+  if (txnFilterType  !== 'all') filterBits.push(txnFilterType);
+  if (txnFilterAsset !== 'all') filterBits.push(txnFilterAsset);
+  if (txnFilterLoc   !== 'all') filterBits.push(txnFilterLoc);
+  const filterLabel = filterBits.length ? ` · filtered: ${filterBits.join(' / ')}` : '';
+  meta.textContent = `${rows.length} of ${all.length} deal${all.length === 1 ? '' : 's'}${filterLabel} · ${runTs}`;
 
   if (!rows.length) {
     tbody.innerHTML = `<tr><td colspan="11" class="txn-empty">${
       all.length === 0
         ? 'No transactions extracted yet — click ✦ Extract deals.'
-        : 'No transactions match this filter.'
+        : 'No transactions match the current filter.'
     }</td></tr>`;
     return;
   }
 
-  // Sort by filing date desc
   rows.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
-  tbody.innerHTML = rows.map(t => `
+  tbody.innerHTML = rows.map(t => {
+    const ac = (t.assetClass || '').toLowerCase();
+    const isMixed = ac.includes('mixed');
+    return `
     <tr>
       <td>${fmtTxnDate(t.filingDate || t.extractedAt)}</td>
       <td>${esc(t.reitName || '—')}</td>
       <td><span class="txn-type ${t.transactionType}">${esc(t.transactionType || '—')}</span></td>
       <td>${esc(t.propertyName || '—')}</td>
-      <td>${esc(t.assetClass || '—')}</td>
+      <td>${esc(t.assetClass || '—')}${isMixed ? '<span class="txn-mixed-tag" title="Mixed-use asset — kept in filter">mix</span>' : ''}</td>
       <td>${esc(t.location || '—')}</td>
       <td class="num">${fmtTxnNum(t.priceJpyMn)}</td>
       <td class="num">${fmtTxnNum(t.appraisalJpyMn)}</td>
       <td class="num">${fmtTxnNum(t.noiJpyMn)}${t.noiBasis && t.noiBasis !== 'NOI' ? ` <span style="color:var(--ink-4);font-size:9px;">(${esc(t.noiBasis)})</span>` : ''}</td>
       <td class="num">${fmtTxnPct(t.yieldPct)}</td>
       <td>${t.sourceUrl ? `<a class="txn-link" href="${esc(t.sourceUrl)}" target="_blank" rel="noopener">↗</a>` : '—'}</td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
 }
 
 async function silentReitFetch() {
