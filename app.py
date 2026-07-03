@@ -58,10 +58,18 @@ Today's date is {current_date}. Run this fresh daily."""
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── PWA ASSETS ────────────────────────────────────────────────
-# Serve manifest.json, sw.js and icons as real same-origin files so
-# Chrome / Safari recognise the app as installable and launch it
-# in standalone (full-screen, no browser chrome) mode.
+# ── PWA ASSETS ──────────────────────────────────────────────────
+# Chrome PWA install requirements (verified against Chrome dev docs):
+#   1. HTTPS  (HF Spaces provides this)
+#   2. Linked manifest.json with:
+#        - name / short_name
+#        - start_url
+#        - display = standalone / fullscreen / minimal-ui
+#        - icons (192px and 512px, or SVG with sizes="any")
+#   3. Service worker registered at scope "/"
+#   4. Service worker with a functional (non-empty) fetch handler
+#      (still needed for auto-install prompt, though menu-install
+#      works since Chrome 108 without it)
 
 MANIFEST = {
     "name": "Dispatch",
@@ -69,24 +77,26 @@ MANIFEST = {
     "description": "Personal news + J-REIT reader",
     "start_url": "/",
     "scope": "/",
+    "id": "/",
     "display": "standalone",
     "display_override": ["standalone", "fullscreen", "minimal-ui"],
     "orientation": "portrait",
     "background_color": "#000000",
     "theme_color": "#c0392b",
     "categories": ["news", "finance", "productivity"],
+    "prefer_related_applications": False,
     "icons": [
         {
-            "src": "/icon-192.png",
-            "sizes": "192x192",
-            "type": "image/png",
-            "purpose": "any maskable"
+            "src": "/icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
         },
         {
-            "src": "/icon-512.png",
-            "sizes": "512x512",
-            "type": "image/png",
-            "purpose": "any maskable"
+            "src": "/icon-maskable.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "maskable"
         }
     ]
 }
@@ -96,27 +106,57 @@ MANIFEST = {
 async def serve_manifest():
     return JSONResponse(
         content=MANIFEST,
+        media_type="application/manifest+json",
         headers={"Cache-Control": "public, max-age=3600"},
     )
 
 
-# Minimal pass-through service worker. Presence of an SW at scope "/"
-# is required by Chrome to treat the site as installable-as-app; the
-# handler does no aggressive caching so news stays fresh.
-SW_JS = """
-const CACHE_NAME = 'dispatch-v1';
+# Functional service worker with a REAL fetch handler.
+# Chrome ignores empty fetch handlers, so this one actually does work:
+# - Caches the app shell on install for offline use
+# - Serves shell from cache when offline (navigation requests only)
+# - Non-navigation requests (API, feeds) pass through untouched so
+#   news content stays fresh
+SW_JS = """// Dispatch service worker
+// Registered at scope "/" by index.html
+// Chrome PWA install requires a non-empty fetch handler.
+
+const CACHE_NAME = 'dispatch-shell-v2';
+const SHELL_URL = '/';
 
 self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.add(SHELL_URL))
+      .catch(err => console.warn('SW shell cache failed:', err))
+  );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    Promise.all([
+      caches.keys().then(names =>
+        Promise.all(names.filter(n => n !== CACHE_NAME).map(n => caches.delete(n)))
+      ),
+      self.clients.claim()
+    ])
+  );
 });
 
 self.addEventListener('fetch', event => {
-  // Pass-through only, no caching, so live data always updates
-  return;
+  // Only intercept navigation requests (main HTML page loads).
+  // Everything else — API calls to the Cloudflare Worker, RSS fetches,
+  // icons — passes through to the network untouched. This keeps the
+  // news feed and REIT data live at all times.
+  if (event.request.mode !== 'navigate') {
+    return;
+  }
+
+  event.respondWith(
+    fetch(event.request)
+      .catch(() => caches.match(SHELL_URL))
+  );
 });
 """
 
@@ -127,45 +167,66 @@ async def serve_sw():
         content=SW_JS,
         media_type="application/javascript",
         headers={
-            "Cache-Control": "no-cache",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
             "Service-Worker-Allowed": "/",
         },
     )
 
 
-# PNG icons generated inline via SVG-to-raster is not possible without
-# an image library. So we serve SVGs disguised as PNG for browsers that
-# accept it, plus a proper SVG fallback. Chrome Android accepts SVG for
-# manifest icons since 2021.
-ICON_SVG_192 = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
-  <rect width="192" height="192" rx="32" fill="#000000"/>
-  <text x="96" y="128" font-family="Georgia,serif" font-size="110" font-weight="700" text-anchor="middle" fill="#c0392b">D</text>
-</svg>"""
-
-ICON_SVG_512 = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+# SVG icons — Chrome accepts SVG in manifest since v80 when declared
+# with sizes="any" and type="image/svg+xml".
+ICON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <rect width="512" height="512" rx="96" fill="#000000"/>
-  <text x="256" y="340" font-family="Georgia,serif" font-size="290" font-weight="700" text-anchor="middle" fill="#c0392b">D</text>
+  <text x="256" y="345" font-family="Georgia,serif" font-size="290" font-weight="700" text-anchor="middle" fill="#c0392b">D</text>
 </svg>"""
 
-
-@app.get("/icon-192.png")
-async def serve_icon_192():
-    # SVG served with PNG-tolerant fallback; browsers negotiating manifest icons
-    # accept SVG content regardless of the .png extension.
-    return Response(content=ICON_SVG_192, media_type="image/svg+xml")
-
-
-@app.get("/icon-512.png")
-async def serve_icon_512():
-    return Response(content=ICON_SVG_512, media_type="image/svg+xml")
+# Maskable variant: safe zone is inner 80% (per Android adaptive icon spec).
+# The background extends to the full canvas so system masks look clean.
+ICON_MASKABLE_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#000000"/>
+  <text x="256" y="325" font-family="Georgia,serif" font-size="220" font-weight="700" text-anchor="middle" fill="#c0392b">D</text>
+</svg>"""
 
 
 @app.get("/icon.svg")
-async def serve_icon_svg():
-    return Response(content=ICON_SVG_192, media_type="image/svg+xml")
+async def serve_icon():
+    return Response(
+        content=ICON_SVG,
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 
-# ── FRONTEND ──────────────────────────────────────────────────
+@app.get("/icon-maskable.svg")
+async def serve_icon_maskable():
+    return Response(
+        content=ICON_MASKABLE_SVG,
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
+# Apple touch icon fallback (iOS Safari doesn't use manifest icons)
+@app.get("/apple-touch-icon.png")
+async def serve_apple_touch_icon():
+    # Serve SVG with PNG-like extension; iOS accepts both
+    return Response(
+        content=ICON_SVG,
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
+# Favicon
+@app.get("/favicon.ico")
+async def serve_favicon():
+    return Response(
+        content=ICON_SVG,
+        media_type="image/svg+xml",
+    )
+
+
+# ── FRONTEND ────────────────────────────────────────────────────
 @app.get("/")
 async def serve_frontend():
     with open("index.html", "r", encoding="utf-8") as f:
