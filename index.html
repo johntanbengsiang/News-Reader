@@ -585,11 +585,11 @@
     background: var(--paper-2);
     flex-wrap: wrap;
   }
-  .reit-last-fetch {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--ink-3);
-    flex: 1;
+  /* Old left-side date/status span removed from toolbar; hide any stragglers. */
+  .reit-last-fetch { display: none; }
+  #pane-reits .reit-toolbar { justify-content: flex-start; gap: 8px; }
+  #pane-reits .reit-toolbar .article-count {
+    margin-left: 8px; font-size: 11px; color: var(--ink-3);
   }
   .reit-body {
     max-width: 900px;
@@ -894,9 +894,8 @@
 <!-- REIT PANE -->
 <div class="pane" id="pane-reits">
   <div class="reit-toolbar">
-    <span class="reit-last-fetch" id="reitLastFetch"></span>
     <button class="toolbar-btn" id="reitFetchBtn">⚡ Fetch now</button>
-    <button class="toolbar-btn" id="reitExtractBtn" title="Run Gemini on new filings">✦ Extract deals</button>
+    <button class="toolbar-btn primary" id="reitExtractBtn" title="Run Gemini on new filings">✦ Extract deals</button>
     <span class="article-count" id="reitCount"></span>
   </div>
 
@@ -1653,11 +1652,9 @@ async function loadReitData() {
     reitArticles     = data.articles     || [];
     reitTransactions = data.transactions || [];
     reitExtractRun   = data.extractLastRun || null;
-    const ts = data.lastFetch ? relativeTime(new Date(data.lastFetch).getTime()) : 'never';
-    document.getElementById('reitLastFetch').textContent = `Server last fetched ${ts}`;
     renderTxnTable();
   } catch (e) {
-    document.getElementById('reitLastFetch').textContent = 'Failed to load';
+    console.warn('Failed to load REIT data', e);
   }
 }
 
@@ -1842,24 +1839,23 @@ function renderReitPane() {
   const dispCount = reitArticles.filter(a => reitCategory(a) === 'disposal').length;
   const total     = reitArticles.length;
 
-  const parts = [`${total} filing${total !== 1 ? 's' : ''}`];
-  if (acqCount > 0)  parts.push(`${acqCount} acquisition${acqCount > 1 ? 's' : ''}`);
-  if (dispCount > 0) parts.push(`${dispCount} disposal${dispCount > 1 ? 's' : ''}`);
-  document.getElementById('reitCount').textContent = parts.join(' · ');
+  // Compact abbreviations: 23F / 2A / 1D — no long date block on the toolbar.
+  const parts = [`${total}F`];
+  if (acqCount > 0)  parts.push(`${acqCount}A`);
+  if (dispCount > 0) parts.push(`${dispCount}D`);
 
-  // Data horizon
-  const reitLastFetchEl = document.getElementById('reitLastFetch');
-  if (reitLastFetchEl && reitArticles.length) {
+  // Append history span from oldest → newest filing timestamp
+  if (reitArticles.length) {
     const ts = reitArticles.map(a => a.timestamp).filter(Boolean);
     if (ts.length) {
       const oldest = new Date(Math.min(...ts));
       const newest = new Date(Math.max(...ts));
-      const fmt = d => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-      const days = Math.round((newest - oldest) / 86400000);
-      const label = days > 180 ? `${(days/30).toFixed(0)}mo` : `${days}d`;
-      reitLastFetchEl.textContent = `Data ${fmt(oldest)} → ${fmt(newest)} · ${label} · ${reitArticles.length}/800 stored`;
+      const days = Math.max(0, Math.round((newest - oldest) / 86400000));
+      const label = days > 180 ? `${(days / 30).toFixed(0)}mo hist` : `${days}d hist`;
+      parts.push(label);
     }
   }
+  document.getElementById('reitCount').textContent = parts.join(' / ');
 
   if (!total && reitFeeds.filter(f => f.url).length === 0) {
     body.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🏢</div>
