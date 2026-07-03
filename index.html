@@ -520,6 +520,54 @@
     max-width: 280px;
   }
   .toast.show { opacity: 1; transform: translateY(0); }
+  /* ── TXN TABLE ─────────────────────────────────────────────── */
+  .txn-panel {
+    border: 1px solid var(--rule);
+    background: var(--paper-2);
+    border-radius: var(--radius);
+    margin: 12px 0 24px;
+    overflow: hidden;
+  }
+  .txn-header {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--rule);
+    background: var(--paper-3);
+  }
+  .txn-title { font-family: var(--serif); font-size: 15px; font-weight: 600; color: var(--ink); }
+  .txn-sub   { font-family: var(--mono); font-size: 10px; color: var(--ink-3); margin-top: 2px; }
+  .txn-filter { display: flex; gap: 4px; }
+  .txn-chip {
+    background: var(--paper); border: 1px solid var(--rule);
+    color: var(--ink-2); font-family: var(--mono); font-size: 10px;
+    padding: 4px 8px; border-radius: var(--radius); cursor: pointer;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .txn-chip.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .txn-scroll { max-height: 340px; overflow: auto; }
+  .txn-table { width: 100%; border-collapse: collapse; font-size: 12px; font-family: var(--sans); }
+  .txn-table thead th {
+    position: sticky; top: 0; z-index: 1;
+    background: var(--paper-2); border-bottom: 1px solid var(--rule);
+    padding: 8px 10px; text-align: left; font-weight: 500;
+    color: var(--ink-3); font-family: var(--mono); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
+  }
+  .txn-table th.num, .txn-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .txn-table tbody td {
+    padding: 8px 10px; border-bottom: 1px solid var(--rule);
+    color: var(--ink); vertical-align: top;
+  }
+  .txn-table tbody tr:hover { background: var(--paper-3); }
+  .txn-type {
+    display: inline-block; padding: 1px 6px; border-radius: 2px;
+    font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .txn-type.acquisition { background: var(--accent); color: #fff; }
+  .txn-type.disposal    { background: #4a6b8a; color: #fff; }
+  .txn-empty { text-align: center; color: var(--ink-3); font-family: var(--mono); font-size: 11px; padding: 24px !important; }
+  .txn-link { color: var(--accent); text-decoration: none; font-family: var(--mono); font-size: 10px; }
+  .txn-link:hover { text-decoration: underline; }
+
   /* ── REIT PANE ─────────────────────────────────────────────── */
   .reit-toolbar {
     display: flex;
@@ -841,8 +889,47 @@
   <div class="reit-toolbar">
     <span class="reit-last-fetch" id="reitLastFetch"></span>
     <button class="toolbar-btn" id="reitFetchBtn">⚡ Fetch now</button>
+    <button class="toolbar-btn" id="reitExtractBtn" title="Run Gemini on new filings">✦ Extract deals</button>
     <span class="article-count" id="reitCount"></span>
   </div>
+
+  <!-- Transactions table (Gemini-extracted from JP filing PDFs) -->
+  <div class="txn-panel" id="txnPanel">
+    <div class="txn-header">
+      <div>
+        <div class="txn-title">Recent transactions</div>
+        <div class="txn-sub" id="txnMeta">—</div>
+      </div>
+      <div class="txn-filter">
+        <button class="txn-chip active" data-txn-filter="all">All</button>
+        <button class="txn-chip" data-txn-filter="acquisition">Acquisitions</button>
+        <button class="txn-chip" data-txn-filter="disposal">Disposals</button>
+      </div>
+    </div>
+    <div class="txn-scroll">
+      <table class="txn-table" id="txnTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>REIT</th>
+            <th>Type</th>
+            <th>Property</th>
+            <th>Asset class</th>
+            <th>Location</th>
+            <th class="num">Price (¥m)</th>
+            <th class="num">Appraisal (¥m)</th>
+            <th class="num">NOI (¥m)</th>
+            <th class="num">Yield</th>
+            <th>Filing</th>
+          </tr>
+        </thead>
+        <tbody id="txnBody">
+          <tr><td colspan="11" class="txn-empty">No transactions extracted yet — click ✦ Extract deals.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <div class="reit-body" id="reitBody">
     <div class="empty-state">
       <div class="empty-state-icon">🏢</div>
@@ -897,36 +984,8 @@
   </div>
 </div>
 
-<!-- PDF VIEWER MODAL (server-side fetch + Gemini translate, NO iframe) -->
-<div class="pdf-modal-overlay" id="pdfModal">
-  <div class="pdf-modal">
-    <div class="pdf-modal-header">
-      <div class="pdf-modal-title">
-        <div class="pdf-modal-title-original" id="pdfModalTitle"></div>
-        <div class="pdf-modal-title-translated" id="pdfModalTitleTranslated"></div>
-      </div>
-      <button class="toolbar-btn icon-only" id="pdfTranslateBtn" title="Translate title JP → EN">🌐</button>
-      <button class="toolbar-btn icon-only" id="pdfOpenExternalBtn" title="Open in new tab">↗</button>
-      <button class="modal-close" id="closePdfModal">✕</button>
-    </div>
-    <div class="pdf-modal-body">
-      <div class="pdf-modal-content" id="pdfModalContent">
-        <div class="pdf-loading" id="pdfLoading">
-          <div class="spinner" style="width:24px;height:24px;border-width:3px;"></div>
-          <div style="margin-top:12px;font-family:var(--mono);font-size:12px;color:var(--ink-3);">Fetching filing content…</div>
-          <div style="margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--ink-4);">Translating via Gemini</div>
-        </div>
-        <div class="pdf-translated-body" id="pdfTranslatedBody"></div>
-        <div class="pdf-error" id="pdfError">
-          <div style="font-size:22px;margin-bottom:8px;">📄</div>
-          <div style="font-weight:500;color:var(--ink);font-size:14px;">Can't extract content inline</div>
-          <div style="font-size:12px;margin:4px 0 14px;color:var(--ink-3);" id="pdfErrorMsg"></div>
-          <a class="toolbar-btn primary" id="pdfModalFallbackLink" href="#" target="_blank" rel="noopener" style="padding:8px 16px;font-size:12px;text-decoration:none;">Open in a new tab ↗</a>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+<!-- (PDF viewer/translation modal removed — filings now open directly in
+     a new tab, and Gemini processes them into the transactions table.) -->
 
 <div class="toast" id="toast"></div>
 <script>
@@ -967,17 +1026,16 @@ const articleSummaries = {};
 let dateFilterFrom = null;
 let dateFilterTo   = null;
 
-let currentPdfUrl         = null;
-let currentPdfTitle       = null;
-let currentPdfTranslation = null;
-let currentPdfContent     = null;
-
 // REIT state
-let reitArticles = [];
-let reitFeeds    = [];
-let reitReadSet  = new Set(JSON.parse(localStorage.getItem('dispatch_reit_read') || '[]'));
-let reitFetching = false;
-let reitLoaded   = false;
+let reitArticles     = [];
+let reitFeeds        = [];
+let reitTransactions = [];
+let reitExtractRun   = null;
+let reitReadSet      = new Set(JSON.parse(localStorage.getItem('dispatch_reit_read') || '[]'));
+let reitFetching     = false;
+let reitExtracting   = false;
+let reitLoaded       = false;
+let txnFilter        = 'all';
 
 // ── UTIL ───────────────────────────────────────────────────────
 function esc(str) {
@@ -1242,21 +1300,19 @@ function attachEventListeners() {
   // Summary
   document.getElementById('generateSummaryBtn').addEventListener('click', generateSummary);
 
-  // PDF modal
-  document.getElementById('closePdfModal').addEventListener('click', closePdfModal);
-  document.getElementById('pdfTranslateBtn').addEventListener('click', translatePdfModalTitle);
-  document.getElementById('pdfOpenExternalBtn').addEventListener('click', () => {
-    if (currentPdfUrl) window.open(currentPdfUrl, '_blank', 'noopener');
-  });
-  document.getElementById('pdfModal').addEventListener('click', e => {
-    if (e.target.id === 'pdfModal') closePdfModal();
-  });
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && document.getElementById('pdfModal').classList.contains('open')) closePdfModal();
-  });
-
-  // REIT fetch
+  // REIT fetch + extract
   document.getElementById('reitFetchBtn').addEventListener('click', silentReitFetch);
+  document.getElementById('reitExtractBtn').addEventListener('click', runReitExtract);
+
+  // Txn table filter chips
+  document.querySelectorAll('.txn-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.txn-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      txnFilter = chip.dataset.txnFilter;
+      renderTxnTable();
+    });
+  });
 
   // Close modals on overlay click
   ['settingsModal', 'promptModal'].forEach(id => {
@@ -1562,13 +1618,107 @@ async function loadReitData() {
   try {
     const res  = await fetch(GAS_URL.replace(/\/$/, '') + '?tab=reit');
     const data = await res.json();
-    reitFeeds    = data.feeds    || [];
-    reitArticles = data.articles || [];
+    reitFeeds        = data.feeds        || [];
+    reitArticles     = data.articles     || [];
+    reitTransactions = data.transactions || [];
+    reitExtractRun   = data.extractLastRun || null;
     const ts = data.lastFetch ? relativeTime(new Date(data.lastFetch).getTime()) : 'never';
     document.getElementById('reitLastFetch').textContent = `Server last fetched ${ts}`;
+    renderTxnTable();
   } catch (e) {
     document.getElementById('reitLastFetch').textContent = 'Failed to load';
   }
+}
+
+async function runReitExtract() {
+  if (reitExtracting) return;
+  reitExtracting = true;
+  const btn = document.getElementById('reitExtractBtn');
+  btn.disabled    = true;
+  btn.textContent = '⏳ Extracting…';
+  try {
+    const res = await fetch(GAS_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body:    JSON.stringify({ action: 'extractReitTransactions' }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      await loadReitData();
+      const msg = data.added > 0
+        ? `${data.added} new deal${data.added > 1 ? 's' : ''} extracted`
+        : `Scanned ${data.scanned || 0} filing${data.scanned === 1 ? '' : 's'}, no new deals`;
+      toast(msg);
+    } else {
+      toast(data.error || 'Extraction failed');
+    }
+  } catch (e) {
+    console.error('Extract failed:', e);
+    toast('Extraction request failed');
+  }
+  reitExtracting = false;
+  btn.disabled    = false;
+  btn.textContent = '✦ Extract deals';
+}
+
+// ── TRANSACTIONS TABLE ─────────────────────────────────────────
+function fmtTxnNum(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  return Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+function fmtTxnPct(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  return Number(n).toFixed(2) + '%';
+}
+function fmtTxnDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d)) return String(iso).slice(0, 10);
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+}
+
+function renderTxnTable() {
+  const tbody = document.getElementById('txnBody');
+  const meta  = document.getElementById('txnMeta');
+  if (!tbody) return;
+
+  const all = (reitTransactions || []).filter(t => !t.noExtract);
+  const rows = txnFilter === 'all'
+    ? all
+    : all.filter(t => t.transactionType === txnFilter);
+
+  const runTs = reitExtractRun
+    ? `Last run ${relativeTime(new Date(reitExtractRun).getTime())}`
+    : 'Never run — click ✦ Extract deals';
+  meta.textContent = `${all.length} deal${all.length === 1 ? '' : 's'} · ${runTs}`;
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="11" class="txn-empty">${
+      all.length === 0
+        ? 'No transactions extracted yet — click ✦ Extract deals.'
+        : 'No transactions match this filter.'
+    }</td></tr>`;
+    return;
+  }
+
+  // Sort by filing date desc
+  rows.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+  tbody.innerHTML = rows.map(t => `
+    <tr>
+      <td>${fmtTxnDate(t.filingDate || t.extractedAt)}</td>
+      <td>${esc(t.reitName || '—')}</td>
+      <td><span class="txn-type ${t.transactionType}">${esc(t.transactionType || '—')}</span></td>
+      <td>${esc(t.propertyName || '—')}</td>
+      <td>${esc(t.assetClass || '—')}</td>
+      <td>${esc(t.location || '—')}</td>
+      <td class="num">${fmtTxnNum(t.priceJpyMn)}</td>
+      <td class="num">${fmtTxnNum(t.appraisalJpyMn)}</td>
+      <td class="num">${fmtTxnNum(t.noiJpyMn)}${t.noiBasis && t.noiBasis !== 'NOI' ? ` <span style="color:var(--ink-4);font-size:9px;">(${esc(t.noiBasis)})</span>` : ''}</td>
+      <td class="num">${fmtTxnPct(t.yieldPct)}</td>
+      <td>${t.sourceUrl ? `<a class="txn-link" href="${esc(t.sourceUrl)}" target="_blank" rel="noopener">↗</a>` : '—'}</td>
+    </tr>
+  `).join('');
 }
 
 async function silentReitFetch() {
@@ -1620,7 +1770,7 @@ function renderReitPane() {
       const fmt = d => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
       const days = Math.round((newest - oldest) / 86400000);
       const label = days > 180 ? `${(days/30).toFixed(0)}mo` : `${days}d`;
-      reitLastFetchEl.textContent = `Data ${fmt(oldest)} → ${fmt(newest)} · ${label} · ${reitArticles.length}/300 stored`;
+      reitLastFetchEl.textContent = `Data ${fmt(oldest)} → ${fmt(newest)} · ${label} · ${reitArticles.length}/800 stored`;
     }
   }
 
@@ -1699,137 +1849,17 @@ function renderReitRow(a) {
   </div>`;
 }
 
-// Opens filing in an in-app content viewer (server-side fetch + Gemini
-// translation). No iframe → no X-Frame-Options blocking.
+// Open filing in a new tab. Gemini extraction (into the txn table above)
+// now handles the JP-language heavy lifting server-side.
 function openReitArticle(id) {
   const a = reitArticles.find(x => x.id === id);
   if (!a) return;
   reitReadSet.add(id);
   saveReitRead();
   renderReitPane();
-  if (a.link && a.link !== 'undefined') openPdfModal(a.link, a.title);
+  if (a.link && a.link !== 'undefined') window.open(a.link, '_blank', 'noopener');
 }
 window.openReitArticle = openReitArticle;
-
-/* ==============================================================
-   PDF MODAL — no iframe. Uses backend fetchAndTranslate action.
-============================================================== */
-function openPdfModal(url, title) {
-  currentPdfUrl         = url;
-  currentPdfTitle       = title;
-  currentPdfTranslation = null;
-  currentPdfContent     = null;
-
-  document.getElementById('pdfModalTitle').textContent = title;
-  const trEl = document.getElementById('pdfModalTitleTranslated');
-  trEl.textContent = '';
-  trEl.classList.remove('show');
-
-  const btn = document.getElementById('pdfTranslateBtn');
-  btn.classList.remove('active');
-  btn.textContent = '🌐';
-
-  document.getElementById('pdfLoading').classList.remove('hidden');
-  document.getElementById('pdfError').classList.remove('show');
-  const body = document.getElementById('pdfTranslatedBody');
-  body.textContent = '';
-  body.classList.remove('show');
-  document.getElementById('pdfModalFallbackLink').href = url;
-
-  document.getElementById('pdfModal').classList.add('open');
-
-  // Kick off title translation + content fetch in parallel
-  translatePdfModalTitle();
-  fetchAndTranslateContent(url);
-}
-
-function closePdfModal() {
-  document.getElementById('pdfModal').classList.remove('open');
-  currentPdfUrl = null;
-  currentPdfTitle = null;
-  currentPdfTranslation = null;
-  currentPdfContent = null;
-}
-
-async function fetchAndTranslateContent(url) {
-  const loading = document.getElementById('pdfLoading');
-  const errBox  = document.getElementById('pdfError');
-  const errMsg  = document.getElementById('pdfErrorMsg');
-  const body    = document.getElementById('pdfTranslatedBody');
-
-  try {
-    const res = await fetch(GAS_URL, {
-      method:  'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body:    JSON.stringify({ action: 'fetchAndTranslate', url }),
-    });
-    const data = await res.json();
-
-    if (!data.success) {
-      loading.classList.add('hidden');
-      errMsg.textContent = data.error || 'Unknown error';
-      errBox.classList.add('show');
-      return;
-    }
-
-    currentPdfContent = data.translation;
-    loading.classList.add('hidden');
-
-    const html = data.translation
-      .split(/\n{2,}/)
-      .map(p => `<p>${esc(p).replace(/\n/g, '<br>')}</p>`)
-      .join('');
-    const chars = data.sourceChars || 0;
-    body.innerHTML = html +
-      `<div class="pdf-source-meta">
-        <span>Translated ${chars.toLocaleString()} chars via Gemini</span>
-        <a href="${esc(url)}" target="_blank" rel="noopener" style="color:var(--accent);">View original ↗</a>
-      </div>`;
-    body.classList.add('show');
-  } catch (err) {
-    loading.classList.add('hidden');
-    errMsg.textContent = err.message || String(err);
-    errBox.classList.add('show');
-  }
-}
-
-async function translatePdfModalTitle() {
-  if (!currentPdfTitle) return;
-  const btn  = document.getElementById('pdfTranslateBtn');
-  const trEl = document.getElementById('pdfModalTitleTranslated');
-
-  if (currentPdfTranslation && trEl.classList.contains('show')) {
-    trEl.classList.remove('show');
-    btn.classList.remove('active');
-    return;
-  }
-  if (currentPdfTranslation) {
-    trEl.textContent = currentPdfTranslation;
-    trEl.classList.add('show');
-    btn.classList.add('active');
-    return;
-  }
-
-  btn.disabled = true;
-  btn.textContent = '⏳';
-  try {
-    const res = await fetch(GAS_URL, {
-      method:  'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body:    JSON.stringify({ action: 'translateText', text: currentPdfTitle }),
-    });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Translate failed');
-    currentPdfTranslation = data.translation;
-    trEl.textContent = data.translation;
-    trEl.classList.add('show');
-    btn.classList.add('active');
-  } catch (err) {
-    console.warn('Title translate failed:', err.message);
-  }
-  btn.disabled = false;
-  btn.textContent = '🌐';
-}
 
 // ── BOOT ───────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
