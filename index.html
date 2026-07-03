@@ -12,14 +12,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Dispatch — Personal News Reader</title>
-<link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#c0392b">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Dispatch">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="icon" type="image/svg+xml" href="/icon.svg">
 
 <!-- ── PWA / INSTALL-TO-HOMESCREEN ──────────────────────────────
      Real same-origin manifest.json + sw.js served by app.py.
@@ -2115,26 +2107,6 @@ document.addEventListener('DOMContentLoaded', () => {
   registerServiceWorker();
   init().catch(e => console.error('Boot failed:', e));
 });
-
-// Register the service worker at root scope.
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js', { scope: '/' })
-      .then(reg => console.log('SW registered, scope:', reg.scope))
-      .catch(err => console.warn('SW register failed:', err));
-  });
-}
-
-let deferredInstallPrompt = null;
-window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault();
-  deferredInstallPrompt = e;
-  console.log('PWA install available');
-});
-window.addEventListener('appinstalled', () => {
-  deferredInstallPrompt = null;
-  console.log('PWA installed');
-});
-<script>
+</script>
 </body>
 </html>
