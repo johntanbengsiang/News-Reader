@@ -585,7 +585,8 @@
     background: var(--paper-2);
     flex-wrap: wrap;
   }
-  /* Old left-side date/status span removed from toolbar; hide any stragglers. */
+  /* Old left-side date/status span removed. Hide safely in case it is
+     still referenced anywhere. */
   .reit-last-fetch { display: none; }
   #pane-reits .reit-toolbar { justify-content: flex-start; gap: 8px; }
   #pane-reits .reit-toolbar .article-count {
@@ -1671,15 +1672,27 @@ async function runReitExtract() {
       body:    JSON.stringify({ action: 'extractReitTransactions' }),
     });
     const data = await res.json();
-    if (data.success) {
-      await loadReitData();
-      const msg = data.added > 0
-        ? `${data.added} new deal${data.added > 1 ? 's' : ''} extracted`
-        : `Scanned ${data.scanned || 0} filing${data.scanned === 1 ? '' : 's'}, no new deals`;
-      toast(msg);
+    // Interpret extraction result. Quota / 429 errors from Gemini must
+    // NOT be reported as "no new deals" — that hides a real problem.
+    const errs      = Array.isArray(data.errors) ? data.errors : [];
+    const quotaHit  = errs.some(e => {
+      const s = String(e.error || '').toLowerCase();
+      return s.includes('429') || s.includes('quota') || s.includes('rate limit') || s.includes('rate-lim');
+    });
+    let msg;
+    if (data.added > 0) {
+      msg = `${data.added} new deal${data.added > 1 ? 's' : ''} extracted`;
+    } else if (quotaHit) {
+      msg = 'Gemini quota / rate limit hit. Wait a few minutes and retry.';
+    } else if (errs.length) {
+      msg = `Extraction errors on ${errs.length} filing${errs.length === 1 ? '' : 's'} — check reitExtractErrors.`;
+    } else if (data.success) {
+      msg = `Scanned ${data.scanned || 0} filing${data.scanned === 1 ? '' : 's'}, no new rows`;
     } else {
-      toast(data.error || 'Extraction failed');
+      msg = data.error || 'Extraction failed';
     }
+    if (data.success || data.added > 0) await loadReitData();
+    toast(msg);
   } catch (e) {
     console.error('Extract failed:', e);
     toast('Extraction request failed');
@@ -1839,12 +1852,10 @@ function renderReitPane() {
   const dispCount = reitArticles.filter(a => reitCategory(a) === 'disposal').length;
   const total     = reitArticles.length;
 
-  // Compact abbreviations: 23F / 2A / 1D — no long date block on the toolbar.
+  // Compact abbreviations: 70F / 46A / 3D / 171d hist
   const parts = [`${total}F`];
   if (acqCount > 0)  parts.push(`${acqCount}A`);
   if (dispCount > 0) parts.push(`${dispCount}D`);
-
-  // Append history span from oldest → newest filing timestamp
   if (reitArticles.length) {
     const ts = reitArticles.map(a => a.timestamp).filter(Boolean);
     if (ts.length) {
