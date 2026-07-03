@@ -1884,11 +1884,17 @@ function renderTxnTable() {
   const meta  = document.getElementById('txnMeta');
   if (!tbody) return;
 
-  const all = (reitTransactions || []).filter(t => !t.noExtract);
+  const all = (reitTransactions || [])
+    .filter(t => !t.noExtract)
+    .filter(t => {
+      const p = Number(t.priceJpyMn);
+      return Number.isFinite(p) && p > 0;
+    });
   const rows = all
     .filter(t => matchTxnType(t, txnFilterType))
     .filter(t => matchAssetClass(t, txnFilterAsset))
     .filter(t => matchLocation(t, txnFilterLoc));
+
 
   const runTs = reitExtractRun
     ? `Last run ${relativeTime(new Date(reitExtractRun).getTime())}`
@@ -1916,7 +1922,10 @@ function renderTxnTable() {
     const isMixed = ac.includes('mixed');
     const cell    = v => isMissing(v) ? '—' : esc(v);
     const typeVal = isMissing(t.transactionType) ? '' : String(t.transactionType).toLowerCase();
-    const typeLbl = isMissing(t.transactionType) ? '—' : esc(t.transactionType);
+    const typeLbl = typeVal === 'acquisition' ? 'A'
+                  : typeVal === 'disposal'    ? 'D'
+                  : '—';
+
     return `
     <tr>
       <td>${fmtTxnDate(t.filingDate || t.extractedAt)}</td>
