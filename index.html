@@ -112,7 +112,7 @@
   }
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { max-width: 100%; overflow-x: hidden; }
+  
   body {
     font-family: var(--sans);
     background: var(--paper);
@@ -120,23 +120,21 @@
     font-size: 14px;
     line-height: 1.5;
     min-height: 100vh;
-    /* Safe-area for iPhone notch / Android gesture bar */
+    overflow-x: clip;
     padding-top:    env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
     padding-left:   env(safe-area-inset-left);
     padding-right:  env(safe-area-inset-right);
     -webkit-text-size-adjust: 100%;
-    overscroll-behavior-y: contain;
   }
+
   /* Force long text (esp. URLs in descriptions) to wrap inside viewport */
   .article-description, .article-title, .reit-title, .reit-meta,
   .article-meta, .txn-table td, .feed-list-url {
     word-break: break-word;
     overflow-wrap: anywhere;
   }
-  .article-list, .reit-body, .summary-pane, .feed-toolbar, .reit-toolbar, .tabs, .masthead {
-    max-width: 100vw;
-  }
+  
   /* When launched as installed app, hide any browser-fallback UI */
   @media (display-mode: standalone), (display-mode: fullscreen) {
     body::before {
