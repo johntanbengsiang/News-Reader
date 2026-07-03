@@ -10,17 +10,20 @@
   })();
 </script>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
 <title>Dispatch — Personal News Reader</title>
 
-<!-- ── PWA / INSTALL-TO-HOMESCREEN ────────────────────────────── -->
-<link rel="manifest" href='data:application/manifest+json,{"name":"Dispatch","short_name":"Dispatch","description":"Personal news + J-REIT reader","start_url":"/","scope":"/","display":"standalone","orientation":"portrait","background_color":"%23000000","theme_color":"%23c0392b","icons":[{"src":"data:image/svg%2Bxml;utf8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 192 192%22%3E%3Crect width=%22192%22 height=%22192%22 rx=%2232%22 fill=%22%23000%22/%3E%3Ctext x=%2296%22 y=%22128%22 font-family=%22Georgia,serif%22 font-size=%22110%22 font-weight=%22700%22 text-anchor=%22middle%22 fill=%22%23c0392b%22%3ED%3C/text%3E%3C/svg%3E","sizes":"192x192","type":"image/svg+xml","purpose":"any maskable"},{"src":"data:image/svg%2Bxml;utf8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 512 512%22%3E%3Crect width=%22512%22 height=%22512%22 rx=%2296%22 fill=%22%23000%22/%3E%3Ctext x=%22256%22 y=%22340%22 font-family=%22Georgia,serif%22 font-size=%22290%22 font-weight=%22700%22 text-anchor=%22middle%22 fill=%22%23c0392b%22%3ED%3C/text%3E%3C/svg%3E","sizes":"512x512","type":"image/svg+xml","purpose":"any maskable"}]}'>
+<!-- ── PWA / INSTALL-TO-HOMESCREEN ──────────────────────────────
+     Real same-origin manifest.json + sw.js served by app.py.
+     Chrome / Safari treat this as installable → launches full-screen. -->
+<link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#c0392b">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Dispatch">
-<link rel="apple-touch-icon" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180"><rect width="180" height="180" rx="30" fill="%23000"/><text x="90" y="120" font-family="Georgia,serif" font-size="105" font-weight="700" text-anchor="middle" fill="%23c0392b">D</text></svg>'>
-<link rel="icon" type="image/svg+xml" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="10" fill="%23000"/><text x="32" y="44" font-family="Georgia,serif" font-size="40" font-weight="700" text-anchor="middle" fill="%23c0392b">D</text></svg>'>
+<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
 <style>
   /* ── TOKENS ────────────────────────────────────────────────── */
   :root {
@@ -75,22 +78,31 @@
     font-size: 14px;
     line-height: 1.5;
     min-height: 100vh;
-    /* Safe-area insets for iPhone notch / Android gesture bar */
+    /* Safe-area for iPhone notch / Android gesture bar */
     padding-top:    env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
     padding-left:   env(safe-area-inset-left);
     padding-right:  env(safe-area-inset-right);
     -webkit-text-size-adjust: 100%;
+    overscroll-behavior-y: contain;
   }
-  /* Force all text (esp. long URLs in descriptions) to wrap inside the viewport */
+  /* Force long text (esp. URLs in descriptions) to wrap inside viewport */
   .article-description, .article-title, .reit-title, .reit-meta,
   .article-meta, .txn-table td, .feed-list-url {
     word-break: break-word;
     overflow-wrap: anywhere;
   }
-  /* Prevent hero pieces from overflowing horizontally */
   .article-list, .reit-body, .summary-pane, .feed-toolbar, .reit-toolbar, .tabs, .masthead {
     max-width: 100vw;
+  }
+  /* When launched as installed app, hide any browser-fallback UI */
+  @media (display-mode: standalone), (display-mode: fullscreen) {
+    body::before {
+      content: '';
+      display: block;
+      height: env(safe-area-inset-top);
+      background: var(--paper);
+    }
   }
   /* ── MASTHEAD ──────────────────────────────────────────────── */
   .masthead {
@@ -611,7 +623,6 @@
     background: var(--paper-2);
     flex-wrap: wrap;
   }
-  /* Left-side date/status span removed. Safety-net hide anywhere still referenced. */
   .reit-last-fetch { display: none; }
   #pane-reits .reit-toolbar { justify-content: flex-start; gap: 8px; }
   #pane-reits .reit-toolbar .article-count {
@@ -830,8 +841,6 @@
     .reit-toolbar { padding: 8px 14px; gap: 6px; }
     .reit-body { padding: 0 14px 40px; }
     .reit-section-header { top: 82px; }
-
-    /* Txn table: table itself keeps min-width but the scroll wrapper handles overflow */
     .txn-panel { margin: 8px 14px 16px; }
     .txn-header { padding: 10px 12px; }
     .txn-title { font-size: 14px; }
@@ -842,16 +851,9 @@
     .txn-table { min-width: 720px; font-size: 11px; }
     .txn-table thead th, .txn-table tbody td { padding: 6px 8px; }
     .article-count { font-size: 10px; }
-
-    /* Legacy PDF modal (still present as dead CSS) */
     .pdf-modal-overlay { padding: 0; }
     .pdf-modal { height: 100vh; max-width: none; border-radius: 0; }
     .pdf-modal-title-original { font-size: 12px; }
-  }
-
-  /* Standalone PWA mode: adjust for missing browser chrome */
-  @media (display-mode: standalone) {
-    .masthead { padding-top: max(10px, env(safe-area-inset-top)); }
   }
 </style>
 </head>
@@ -1767,8 +1769,6 @@ function fmtTxnDate(iso) {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
 }
 
-// Hotel-focused REITs — used as a fallback signal when Gemini leaves
-// assetClass null. Any deal from these is very likely hotel-related.
 const HOTEL_REIT_HINTS = /\b(jh reit|invincible|hoshino|nhr reit|nhr|kasumigaseki|japan hotel|hotel reit)\b/i;
 
 function isMissing(v) {
@@ -1777,11 +1777,6 @@ function isMissing(v) {
   return s === '' || s === 'null' || s === 'none' || s === 'n/a';
 }
 
-// Portfolio filter matcher — "permissive" mode:
-//   1. Rows with no asset class are KEPT under any single-class filter.
-//   2. Hotel filter also includes rows from hotel-focused REITs even if
-//      asset class is missing.
-//   3. Mixed-use rows still show for whatever primary class matches.
 function matchAssetClass(t, filter) {
   if (filter === 'all') return true;
   const ac       = (t.assetClass || '').toLowerCase().trim();
@@ -1790,7 +1785,7 @@ function matchAssetClass(t, filter) {
 
   if (!acKnown) {
     if (filter === 'hotel' && HOTEL_REIT_HINTS.test(reitName)) return true;
-    return true; // permissive fallback
+    return true;
   }
 
   if (filter === 'hotel') {
@@ -2036,43 +2031,38 @@ function openReitArticle(id) {
 window.openReitArticle = openReitArticle;
 
 // ── PWA SERVICE WORKER ─────────────────────────────────────────
-// Inline SW registered via a Blob URL — no separate sw.js file needed on
-// the server, so this works on any static host (Cloudflare, HF Spaces).
-// The SW is minimal: it just satisfies the PWA install criteria (a fetch
-// handler must exist) and passes requests through untouched, so nothing
-// gets cached aggressively and the news feed always shows fresh content.
-function registerInlineServiceWorker() {
+// Registers /sw.js (served by app.py) at root scope. Presence of a
+// scope-/ SW is what Chrome uses to decide the site is installable
+// as a standalone app.
+function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
-  const swCode = `
-    self.addEventListener('install', e => self.skipWaiting());
-    self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
-    self.addEventListener('fetch', e => { /* pass-through, no caching */ });
-  `;
-  try {
-    const blob = new Blob([swCode], { type: 'application/javascript' });
-    const url  = URL.createObjectURL(blob);
-    navigator.serviceWorker.register(url).catch(err => console.warn('SW register failed:', err));
-  } catch (e) {
-    console.warn('SW init failed:', e);
-  }
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      .then(reg => console.log('SW registered, scope:', reg.scope))
+      .catch(err => console.warn('SW register failed:', err));
+  });
 }
 
-// Simple install prompt handler — offers install as a toast when the
-// browser signals the app is installable.
+// beforeinstallprompt: Chrome fires this when the PWA is installable.
+// We store the event so we can trigger install via a UI button later
+// if desired; also shows a one-off toast the first time.
 let deferredInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   deferredInstallPrompt = e;
-  toast('Tap ⋮ menu → "Install app" to add to homescreen');
+  if (!localStorage.getItem('dispatch_install_hint_shown')) {
+    localStorage.setItem('dispatch_install_hint_shown', '1');
+    setTimeout(() => toast('Install as app: menu ⋮ → Install app'), 1500);
+  }
 });
 window.addEventListener('appinstalled', () => {
   deferredInstallPrompt = null;
-  toast('Installed to homescreen');
+  toast('Installed. Launch from home screen for full-screen mode.');
 });
 
 // ── BOOT ───────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  registerInlineServiceWorker();
+  registerServiceWorker();
   init().catch(e => console.error('Boot failed:', e));
 });
 </script>
