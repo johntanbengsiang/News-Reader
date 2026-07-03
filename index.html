@@ -10,8 +10,16 @@
   })();
 </script>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Dispatch — Personal News Reader</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#c0392b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dispatch">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
 
 <!-- ── PWA / INSTALL-TO-HOMESCREEN ──────────────────────────────
      Real same-origin manifest.json + sw.js served by app.py.
@@ -25,6 +33,48 @@
 <link rel="apple-touch-icon" href="/icon-192.png">
 <link rel="icon" type="image/svg+xml" href="/icon.svg">
 <style>
+  /* Do NOT put overflow rules on html — that's what breaks scrolling. */
+
+  body {
+    /* clip is safer than hidden: prevents horizontal overflow but
+       doesn't create a scroll container, so vertical scroll and
+       sticky positioning keep working. Falls back gracefully on
+       older browsers. */
+    overflow-x: clip;
+
+    /* Respect notch / gesture bar when installed as PWA */
+    padding-top:    env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left:   env(safe-area-inset-left);
+    padding-right:  env(safe-area-inset-right);
+
+    /* Prevent text auto-resize when phone rotates */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Wrap long URLs / titles so they don't push the page sideways.
+     This is what actually solves the horizontal-scroll problem you
+     saw in the earlier screenshot — the URL /resizer/v2/... was
+     forcing the page wider. */
+  .article-description, .article-title, .reit-title, .reit-meta,
+  .article-meta, .txn-table td, .feed-list-url {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  /* Mobile-only tweaks — txn table gets its own horizontal scroll
+     wrapper so it doesn't push the whole page. */
+  @media (max-width: 600px) {
+    .txn-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .txn-table  { min-width: 720px; font-size: 11px; }
+    .txn-table thead th,
+    .txn-table tbody td { padding: 6px 8px; }
+    .txn-chip { font-size: 9px; padding: 3px 6px; }
+    .reit-toolbar { padding: 8px 14px; gap: 6px; }
+    .article-count { font-size: 10px; }
+  }
+</style>
+
   /* ── TOKENS ────────────────────────────────────────────────── */
   :root {
     --ink:       #0f0f0f;
@@ -2065,6 +2115,26 @@ document.addEventListener('DOMContentLoaded', () => {
   registerServiceWorker();
   init().catch(e => console.error('Boot failed:', e));
 });
-</script>
+
+// Register the service worker at root scope.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      .then(reg => console.log('SW registered, scope:', reg.scope))
+      .catch(err => console.warn('SW register failed:', err));
+  });
+}
+
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  console.log('PWA install available');
+});
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  console.log('PWA installed');
+});
+<script>
 </body>
 </html>
