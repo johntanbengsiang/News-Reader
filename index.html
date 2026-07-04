@@ -64,6 +64,8 @@
     .txn-chip { font-size: 9px; padding: 3px 6px; }
     .reit-toolbar { padding: 8px 14px; gap: 6px; }
     .article-count { font-size: 10px; }
+    .article-row { grid-template-columns: 52px 1fr; gap: 10px; }
+    .article-thumb-wrap { width: 52px; height: 52px; }
   }
 
 
@@ -356,16 +358,43 @@
     padding: 0 24px 60px;
   }
   .article-row {
-    display: block;
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    gap: 12px;
     padding: 11px 0;
     border-bottom: 1px solid var(--rule);
     cursor: pointer;
   }
+  .article-thumb-wrap {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--paper-3);
+    flex-shrink: 0;
+  }
+  .article-thumb-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .article-thumb-wrap.empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--ink-4);
+  }
+  .article-row.read .article-thumb-wrap { opacity: 0.5; }
+  .article-body { min-width: 0; }
   .article-row-top {
-    display: grid;
-    grid-template-columns: 1fr auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
     gap: 8px;
-    align-items: start;
   }
   .article-row.read .article-title,
   .article-row.read .article-meta,
@@ -376,7 +405,6 @@
     font-weight: 500;
     color: var(--ink);
     line-height: 1.4;
-    margin-bottom: 3px;
   }
   .article-meta {
     font-family: var(--mono);
@@ -385,9 +413,10 @@
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
+    margin-top: 3px;
   }
   .article-meta .source { color: var(--accent); font-weight: 500; }
-  .article-time { flex-shrink: 0; font-family: var(--mono); font-size: 10px; color: var(--ink-4); padding-top: 3px; }
+  .article-time { flex-shrink: 0; font-family: var(--mono); font-size: 10px; color: var(--ink-4); }
   .article-description {
     font-size: 12.5px;
     color: var(--ink-3);
@@ -1166,6 +1195,19 @@ function esc(str) {
     .replace(/"/g, '&quot;');
 }
 
+// Defensive safety net: the worker now stores plain-text descriptions, but
+// any articles fetched before that fix (or still cached) may still contain
+// raw HTML markup. Strip it here too so the reader never shows literal
+// <div>/<img> tags while the backend catches up on the next fetch cycle.
+function cleanDescription(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function relativeTime(ts) {
   if (!ts) return '';
   const diff = Date.now() - ts;
@@ -1588,17 +1630,24 @@ function renderArticles() {
 }
 
 function renderArticleRow(a) {
-  const read = readSet.has(a.id);
+  const read  = readSet.has(a.id);
+  const desc  = cleanDescription(a.description).slice(0, 200);
+  const thumb = a.imageUrl
+    ? `<div class="article-thumb-wrap"><img src="${esc(a.imageUrl)}" loading="lazy" alt=""
+         onerror="this.parentElement.classList.add('empty');this.parentElement.textContent='${esc((a.feedName || '?').charAt(0).toUpperCase())}';"></div>`
+    : `<div class="article-thumb-wrap empty">${esc((a.feedName || '?').charAt(0).toUpperCase())}</div>`;
+
   return `
     <div class="article-row${read ? ' read' : ''}" onclick="openArticle(event, '${esc(a.id)}', '${esc(a.link)}')">
-      <div class="article-row-top">
-        <div style="flex:1;min-width:0;">
+      ${thumb}
+      <div class="article-body">
+        <div class="article-row-top">
           <div class="article-title">${esc(a.title)}</div>
-          <div class="article-meta"><span class="source">${esc(a.feedName)}</span></div>
+          <div class="article-time">${relativeTime(a.timestamp)}</div>
         </div>
-        <div class="article-time">${relativeTime(a.timestamp)}</div>
+        <div class="article-meta"><span class="source">${esc(a.feedName)}</span></div>
+        <div class="article-description">${esc(desc)}</div>
       </div>
-      <div class="article-description">${esc(a.description ? a.description.slice(0, 200) : '')}</div>
     </div>`;
 }
 
@@ -2061,7 +2110,7 @@ function renderReitRow(a) {
   return `<div class="${classes}" onclick="openReitArticle('${esc(a.id)}')">
     <div>
       <div class="reit-title">${esc(a.title)}${badge}</div>
-      <div class="reit-meta">${esc(a.description ? a.description.slice(0, 120) : '')}</div>
+      <div class="reit-meta">${esc(cleanDescription(a.description).slice(0, 120))}</div>
     </div>
     <div class="reit-time">${relativeTime(a.timestamp)}</div>
   </div>`;
