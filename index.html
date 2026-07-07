@@ -234,6 +234,73 @@
   }
   .pane { display: none; }
   .pane.active { display: block; }
+  /* ── HAMBURGER + SOURCE DRAWER ─────────────────────────────── */
+  .hamburger-btn {
+    background: none;
+    border: none;
+    color: var(--ink-2);
+    font-size: 16px;
+    line-height: 1;
+    padding: 10px 14px 9px 0;
+    cursor: pointer;
+  }
+  .hamburger-btn:hover { color: var(--accent); }
+  .drawer-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(15,15,15,0.45);
+    z-index: 150;
+  }
+  .drawer-overlay.open { display: block; }
+  .source-drawer {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: 280px;
+    max-width: 84vw;
+    background: var(--paper);
+    border-right: 1px solid var(--rule);
+    z-index: 151;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 30px rgba(0,0,0,0.15);
+  }
+  .source-drawer.open { transform: translateX(0); }
+  .source-drawer-header {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--rule);
+    flex-shrink: 0;
+  }
+  .source-drawer-header h3 {
+    flex: 1;
+    font-family: 'Playfair Display', var(--serif);
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .source-drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 0 20px;
+  }
+  .source-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--ink-2);
+  }
+  .source-item:hover { background: var(--paper-2); }
+  .source-item.active { background: var(--paper-3); color: var(--accent); font-weight: 600; }
+  .source-item.all-item { font-weight: 600; color: var(--ink); border-bottom: 1px solid var(--rule); margin-bottom: 4px; padding-bottom: 10px; }
+  .source-group-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .source-feed-item { padding-left: 30px; font-size: 12.5px; color: var(--ink-3); }
+  .source-count { font-family: var(--mono); font-size: 10px; color: var(--ink-4); flex-shrink: 0; }
+  .source-item.active .source-count { color: var(--accent); }
   /* ── FEED TOOLBAR ──────────────────────────────────────────── */
   .feed-toolbar {
     display: flex;
@@ -431,67 +498,6 @@
   .empty-state-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
   .empty-state h3 { font-size: 16px; font-weight: 500; margin-bottom: 6px; color: var(--ink-2); }
   .empty-state p { font-size: 13px; max-width: 340px; margin: 0 auto; }
-  /* ── SUMMARY ───────────────────────────────────────────────── */
-  .summary-pane {
-    max-width: 760px;
-    margin: 0 auto;
-    padding: 24px 24px 60px;
-  }
-  .summary-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-  }
-  .summary-toolbar h2 {
-    font-family: 'Playfair Display', var(--serif);
-    font-size: 22px;
-    font-weight: 600;
-    flex: 1;
-  }
-  .summary-body {
-    background: var(--paper-2);
-    border: 1px solid var(--rule);
-    border-radius: var(--radius);
-    padding: 24px;
-    min-height: 300px;
-    line-height: 1.7;
-    font-size: 14px;
-    color: var(--ink-2);
-  }
-  .summary-body h3 {
-    font-family: 'Playfair Display', var(--serif);
-    font-size: 17px;
-    font-weight: 600;
-    color: var(--ink);
-    margin: 18px 0 8px;
-    padding-bottom: 4px;
-    border-bottom: 1px solid var(--rule);
-  }
-  .summary-body h3:first-child { margin-top: 0; }
-  .summary-body p { margin-bottom: 10px; }
-  .summary-body ul { padding-left: 18px; margin-bottom: 10px; }
-  .summary-body li { margin-bottom: 4px; }
-  .summary-placeholder {
-    color: var(--ink-4);
-    font-size: 13px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 260px;
-    gap: 10px;
-    text-align: center;
-  }
-  .summary-placeholder .icon { font-size: 36px; opacity: 0.3; }
-  .summary-meta {
-    margin-top: 12px;
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--ink-4);
-    text-align: right;
-  }
   /* ── MODALS ────────────────────────────────────────────────── */
   .modal-overlay {
     display: none;
@@ -531,80 +537,6 @@
   }
   .modal-close:hover { color: var(--ink); }
   .modal-body { padding: 20px; }
-  .feed-input-row {
-    display: flex; gap: 8px; margin-bottom: 14px;
-  }
-  .feed-input {
-    flex: 1;
-    font-family: var(--mono);
-    font-size: 12px;
-    padding: 7px 10px;
-    border: 1px solid var(--rule);
-    border-radius: var(--radius);
-    background: var(--paper-2);
-    color: var(--ink);
-    outline: none;
-  }
-  .feed-input:focus { border-color: var(--accent); }
-  .feed-name-input { width: 140px; }
-  .feed-list { list-style: none; }
-  .feed-list-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 7px 0;
-    border-bottom: 1px solid var(--rule);
-    font-size: 12px;
-  }
-  .feed-list-name {
-    font-weight: 500;
-    color: var(--ink);
-    min-width: 80px;
-    max-width: 120px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .feed-list-url {
-    font-family: var(--mono);
-    color: var(--ink-2);
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 11px;
-  }
-  .feed-remove {
-    background: none; border: none; cursor: pointer;
-    color: var(--ink-4); font-size: 16px; line-height: 1;
-    flex-shrink: 0; padding: 2px;
-  }
-  .feed-remove:hover { color: var(--accent); }
-  .modal-section-label {
-    font-family: var(--mono);
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--ink-4);
-    margin-bottom: 8px;
-    margin-top: 16px;
-  }
-  .modal-section-label:first-child { margin-top: 0; }
-  .prompt-textarea {
-    width: 100%;
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 10px;
-    border: 1px solid var(--rule);
-    border-radius: var(--radius);
-    background: var(--paper-2);
-    color: var(--ink);
-    resize: vertical;
-    min-height: 100px;
-    line-height: 1.5;
-    outline: none;
-  }
-  .prompt-textarea:focus { border-color: var(--accent); }
   /* ── LOADING ───────────────────────────────────────────────── */
   .spinner {
     display: inline-block; width: 14px; height: 14px;
@@ -904,7 +836,6 @@
     .feed-toolbar .feed-select,
     .feed-toolbar .toolbar-btn { font-size: 10.5px; padding: 4px 8px; }
     .article-list { padding: 0 14px 40px; }
-    .summary-pane { padding: 16px 14px 40px; }
     .tabs { padding: 0 14px; }
     .tab-btn { padding: 10px 12px 9px; font-size: 11px; }
     .reit-toolbar { padding: 8px 14px; gap: 6px; }
@@ -941,20 +872,28 @@
 
 <!-- TABS -->
 <nav class="tabs">
+  <button class="hamburger-btn" id="sourceDrawerBtn" title="Filter by source" aria-label="Filter by source">☰</button>
   <button class="tab-btn active" data-tab="feed">Feed</button>
-  <button class="tab-btn" data-tab="summary">Summary</button>
   <button class="tab-btn" data-tab="reits">REITs</button>
 </nav>
+
+<!-- SOURCE FILTER DRAWER -->
+<div class="drawer-overlay" id="sourceDrawerOverlay"></div>
+<div class="source-drawer" id="sourceDrawer">
+  <div class="source-drawer-header">
+    <h3>Filter by source</h3>
+    <button class="modal-close" id="closeSourceDrawer">✕</button>
+  </div>
+  <div class="source-drawer-body" id="sourceDrawerBody"></div>
+</div>
 
 <!-- FEED PANE -->
 <div class="pane active" id="pane-feed">
   <div class="feed-toolbar">
-    <select class="feed-select" id="feedFilter">
-      <option value="all">All Feeds</option>
-    </select>
+    <span class="toolbar-btn" id="currentFilterLabel" style="cursor:default;">All Feeds</span>
     <select class="feed-select" id="readFilter">
+      <option value="all" selected>All</option>
       <option value="unread">Unread</option>
-      <option value="all">All</option>
       <option value="read">Read</option>
     </select>
     <button class="toolbar-btn icon-only" id="forceFetchBtn" title="Fetch all feeds now">⚡</button>
@@ -983,34 +922,16 @@
       </div>
     </div>
     <button class="toolbar-btn" id="markAllReadBtn">Mark all read</button>
-    <button class="toolbar-btn" id="openSettingsBtn">⚙ Feeds</button>
+    <button class="toolbar-btn" id="openSettingsBtn">⚙ Settings</button>
     <span class="article-count" id="lastFetchInfo" style="margin-left:auto;"></span>
     <span class="article-count" id="articleCount"></span>
   </div>
   <div class="article-list" id="articleList">
     <div class="empty-state">
       <div class="empty-state-icon">📡</div>
-      <h3>No feeds yet</h3>
-      <p>Click <strong>⚙ Feeds</strong> to add RSS feeds.</p>
+      <h3>Loading feeds…</h3>
+      <p>If this doesn't clear, check the worker connection.</p>
     </div>
-  </div>
-</div>
-
-<!-- SUMMARY PANE -->
-<div class="pane" id="pane-summary">
-  <div class="summary-pane">
-    <div class="summary-toolbar">
-      <h2>News Summary</h2>
-      <button class="toolbar-btn" id="openPromptBtn">⚙ Configure prompt</button>
-      <button class="toolbar-btn primary" id="generateSummaryBtn">Generate summary</button>
-    </div>
-    <div class="summary-body" id="summaryBody">
-      <div class="summary-placeholder">
-        <div class="icon">✦</div>
-        <p>Click <strong>Generate summary</strong> for an AI digest of unread articles.</p>
-      </div>
-    </div>
-    <div class="summary-meta" id="summaryMeta"></div>
   </div>
 </div>
 
@@ -1088,43 +1009,18 @@
 <div class="modal-overlay" id="settingsModal">
   <div class="modal">
     <div class="modal-header">
-      <h3>Feed Settings</h3>
+      <h3>Settings</h3>
       <button class="modal-close" id="closeSettings">✕</button>
     </div>
     <div class="modal-body">
-      <div class="modal-section-label">Add RSS Feed</div>
-      <div class="feed-input-row">
-        <input class="feed-input feed-name-input" id="feedNameInput" type="text" placeholder="Name (e.g. Reuters)">
-        <input class="feed-input" id="feedUrlInput" type="url" placeholder="https://...">
-        <button class="toolbar-btn primary" id="addFeedBtn">Add</button>
-      </div>
-
-      <div class="modal-section-label">Active Feeds</div>
-      <ul class="feed-list" id="feedList">
-        <li style="font-size:12px;color:var(--ink-4);padding:8px 0;">No feeds added yet.</li>
-      </ul>
-
+      <p style="font-size:12px;color:var(--ink-3);line-height:1.6;">
+        Feeds are hardcoded in <code>worker.js</code> (<code>NEWS_FEEDS</code>) so they can't
+        be silently lost — use the ☰ button next to the Feed tab to filter by source.
+        To add, remove, or rename a feed, edit <code>worker.js</code> and redeploy.
+      </p>
       <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">
         <button class="toolbar-btn danger" id="clearReadBtn">Clear read history</button>
         <button class="toolbar-btn danger" id="clearAllBtn">Clear local data</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- PROMPT MODAL -->
-<div class="modal-overlay" id="promptModal">
-  <div class="modal">
-    <div class="modal-header">
-      <h3>Summary Prompt</h3>
-      <button class="modal-close" id="closePrompt">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="modal-section-label">System prompt for AI summary</div>
-      <textarea class="prompt-textarea" id="summaryPromptInput" rows="6"></textarea>
-      <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
-        <button class="toolbar-btn" id="resetPromptBtn">Reset default</button>
-        <button class="toolbar-btn primary" id="savePromptBtn">Save</button>
       </div>
     </div>
   </div>
@@ -1145,19 +1041,8 @@
 const GAS_URL = 'https://dispatch.dispatch-news.workers.dev/';
 
 const STORAGE = {
-  READ:      'dispatch_read',
-  THRESHOLD: 'dispatch_threshold',
-  PROMPT:    'dispatch_prompt',
-  SUMMARY:   'dispatch_summary',
+  READ: 'dispatch_read',
 };
-
-const DEFAULT_PROMPT = `You are a senior geopolitical and financial analyst producing a concise daily briefing.
-Given a list of news headlines and their sources, write a structured summary covering:
-1. **Top Stories** — the 3-5 most significant developments
-2. **Geopolitics & Macro** — notable shifts, central bank signals, or economic data
-3. **Markets & Business** — key corporate or market-moving news
-4. **To Watch** — emerging stories worth monitoring
-Be analytical, not just descriptive. Keep to ~400 words.`;
 
 // ── STATE ──────────────────────────────────────────────────────
 let feeds        = [];
@@ -1167,10 +1052,13 @@ let lastFetch    = null;
 let fetchErrors  = [];
 let pollTimer    = null;
 let isFetching   = false;
-const articleSummaries = {};
 
 let dateFilterFrom = null;
 let dateFilterTo   = null;
+
+// Source-filter drawer state: 'all' | 'group' | 'feed'
+let sourceFilterType  = 'all';
+let sourceFilterValue = null;
 
 // REIT state
 let reitArticles     = [];
@@ -1262,8 +1150,8 @@ async function init() {
   renderMastheadDate();
   attachEventListeners();
   await loadFromBackend();
-  renderFeedFilter();
-  renderFeedList();
+  renderSourceDrawer();
+  updateFilterLabel();
   renderArticles();
   startPolling();
   silentBackgroundFetch();
@@ -1272,13 +1160,6 @@ async function init() {
 function loadLocalPrefs() {
   try { readSet = new Set(JSON.parse(localStorage.getItem(STORAGE.READ)) || []); }
   catch { readSet = new Set(); }
-  const cached = localStorage.getItem(STORAGE.SUMMARY);
-  if (cached) {
-    try {
-      const s = JSON.parse(cached);
-      renderSummary(s.html, s.meta);
-    } catch {}
-  }
 }
 
 function saveRead() {
@@ -1299,9 +1180,6 @@ async function loadFromBackend() {
     articles    = data.articles    || [];
     lastFetch   = data.lastFetch   || null;
     fetchErrors = data.fetchErrors || [];
-    if (data.summary && data.summary.rawText) {
-      renderSummary(markdownToHtml(data.summary.rawText), data.summary.meta);
-    }
     setStatus('live');
   } catch (e) {
     console.error('loadFromBackend failed:', e);
@@ -1417,8 +1295,19 @@ function attachEventListeners() {
   document.getElementById('forceFetchBtn').addEventListener('click', forceFetchNow);
   document.getElementById('markAllReadBtn').addEventListener('click', markAllRead);
   document.getElementById('openSettingsBtn').addEventListener('click', () => openModal('settingsModal'));
-  document.getElementById('feedFilter').addEventListener('change', renderArticles);
   document.getElementById('readFilter').addEventListener('change', renderArticles);
+
+  // Source filter drawer
+  document.getElementById('sourceDrawerBtn').addEventListener('click', () => {
+    // Filtering only makes sense on the Feed tab — switch there first.
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+    document.querySelector('.tab-btn[data-tab="feed"]').classList.add('active');
+    document.getElementById('pane-feed').classList.add('active');
+    openDrawer();
+  });
+  document.getElementById('closeSourceDrawer').addEventListener('click', closeDrawer);
+  document.getElementById('sourceDrawerOverlay').addEventListener('click', closeDrawer);
 
   // Date filter
   document.getElementById('dateFilterBtn').addEventListener('click', toggleDatePopover);
@@ -1438,28 +1327,8 @@ function attachEventListeners() {
 
   // Settings modal
   document.getElementById('closeSettings').addEventListener('click', () => closeModal('settingsModal'));
-  document.getElementById('addFeedBtn').addEventListener('click', addFeed);
-  document.getElementById('feedUrlInput').addEventListener('keydown', e => { if (e.key === 'Enter') addFeed(); });
   document.getElementById('clearReadBtn').addEventListener('click', clearRead);
   document.getElementById('clearAllBtn').addEventListener('click', clearAllLocal);
-
-  // Prompt modal
-  document.getElementById('openPromptBtn').addEventListener('click', () => {
-    document.getElementById('summaryPromptInput').value = getSummaryPrompt();
-    openModal('promptModal');
-  });
-  document.getElementById('closePrompt').addEventListener('click', () => closeModal('promptModal'));
-  document.getElementById('savePromptBtn').addEventListener('click', () => {
-    localStorage.setItem(STORAGE.PROMPT, document.getElementById('summaryPromptInput').value);
-    closeModal('promptModal');
-    toast('Prompt saved');
-  });
-  document.getElementById('resetPromptBtn').addEventListener('click', () => {
-    document.getElementById('summaryPromptInput').value = DEFAULT_PROMPT;
-  });
-
-  // Summary
-  document.getElementById('generateSummaryBtn').addEventListener('click', generateSummary);
 
   // REIT fetch + extract
   document.getElementById('reitFetchBtn').addEventListener('click', silentReitFetch);
@@ -1481,7 +1350,7 @@ function attachEventListeners() {
   bindChipGroup('loc',   v => txnFilterLoc   = v);
 
   // Close modals on overlay click
-  ['settingsModal', 'promptModal'].forEach(id => {
+  ['settingsModal'].forEach(id => {
     document.getElementById(id).addEventListener('click', e => {
       if (e.target.id === id) closeModal(id);
     });
@@ -1527,84 +1396,105 @@ function clearDateFilter() {
   renderArticles();
 }
 
-// ── FEED MGMT ──────────────────────────────────────────────────
-async function syncFeedsToBackend(confirmClear) {
-  try {
-    const res = await fetch(GAS_URL, {
-      method:  'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body:    JSON.stringify({ action: 'updateFeeds', feeds, confirmClear: !!confirmClear }),
+// ── SOURCE FILTER DRAWER ─────────────────────────────────────────
+// Feeds are hardcoded server-side (NEWS_FEEDS in worker.js) and grouped by
+// provider via each feed's `group` field. This drawer lets you filter by
+// an entire provider group or a single feed within it — Inoreader-style.
+function openDrawer() {
+  renderSourceDrawer();
+  document.getElementById('sourceDrawer').classList.add('open');
+  document.getElementById('sourceDrawerOverlay').classList.add('open');
+}
+function closeDrawer() {
+  document.getElementById('sourceDrawer').classList.remove('open');
+  document.getElementById('sourceDrawerOverlay').classList.remove('open');
+}
+
+function feedUnreadCount(feedId) {
+  return articles.filter(a => a.feedId === feedId && !readSet.has(a.id)).length;
+}
+function groupUnreadCount(group) {
+  return feeds.filter(f => f.group === group).reduce((sum, f) => sum + feedUnreadCount(f.id), 0);
+}
+
+function renderSourceDrawer() {
+  const body = document.getElementById('sourceDrawerBody');
+  if (!body) return;
+
+  // Preserve first-seen order of groups as defined in NEWS_FEEDS.
+  const groups = [];
+  feeds.forEach(f => { if (f.group && !groups.includes(f.group)) groups.push(f.group); });
+
+  const totalUnread = articles.filter(a => !readSet.has(a.id)).length;
+  const allActive = sourceFilterType === 'all';
+
+  let html = `
+    <div class="source-item all-item${allActive ? ' active' : ''}" data-filter-type="all">
+      <span class="source-group-name">All Feeds</span>
+      <span class="source-count">${totalUnread}</span>
+    </div>`;
+
+  html += groups.map(group => {
+    const groupFeeds = feeds.filter(f => f.group === group);
+    const groupActive = sourceFilterType === 'group' && sourceFilterValue === group;
+    const groupRow = `
+      <div class="source-item${groupActive ? ' active' : ''}" data-filter-type="group" data-filter-value="${esc(group)}">
+        <span class="source-group-name">${esc(group)}</span>
+        <span class="source-count">${groupUnreadCount(group)}</span>
+      </div>`;
+    // Single-feed groups: no need to also list the one feed underneath.
+    if (groupFeeds.length <= 1) return groupRow;
+    const feedRows = groupFeeds.map(f => {
+      const active = sourceFilterType === 'feed' && sourceFilterValue === f.id;
+      return `
+        <div class="source-item source-feed-item${active ? ' active' : ''}" data-filter-type="feed" data-filter-value="${esc(f.id)}">
+          <span class="source-group-name">${esc(f.name)}</span>
+          <span class="source-count">${feedUnreadCount(f.id)}</span>
+        </div>`;
+    }).join('');
+    return groupRow + feedRows;
+  }).join('');
+
+  body.innerHTML = html;
+
+  body.querySelectorAll('.source-item').forEach(el => {
+    el.addEventListener('click', () => {
+      sourceFilterType  = el.dataset.filterType;
+      sourceFilterValue = el.dataset.filterValue || null;
+      renderSourceDrawer();
+      updateFilterLabel();
+      renderArticles();
+      closeDrawer();
     });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Sync failed');
-  } catch (e) {
-    toast('Sync failed: ' + (e.message || e));
+  });
+}
+
+function updateFilterLabel() {
+  const el = document.getElementById('currentFilterLabel');
+  if (!el) return;
+  if (sourceFilterType === 'all') el.textContent = 'All Feeds';
+  else if (sourceFilterType === 'group') el.textContent = sourceFilterValue;
+  else if (sourceFilterType === 'feed') {
+    const f = feeds.find(x => x.id === sourceFilterValue);
+    el.textContent = f ? f.name : 'All Feeds';
   }
 }
 
-async function addFeed() {
-  const url  = document.getElementById('feedUrlInput').value.trim();
-  const name = document.getElementById('feedNameInput').value.trim() || extractName(url);
-  if (!url || !url.startsWith('http')) { toast('Enter a valid URL'); return; }
-  if (feeds.find(f => f.url === url)) { toast('Feed already added'); return; }
-  feeds.push({ url, name, id: Date.now().toString() });
-  renderFeedList();
-  renderFeedFilter();
-  toast(`Added ${name}. Fetching…`);
-  await syncFeedsToBackend();
-  await loadFromBackend();
-  renderArticles();
-  document.getElementById('feedUrlInput').value = '';
-  document.getElementById('feedNameInput').value = '';
-}
-
-async function removeFeed(id) {
-  feeds = feeds.filter(f => f.id !== id);
-  articles = articles.filter(a => a.feedId !== id);
-  renderFeedList();
-  renderFeedFilter();
-  renderArticles();
-  await syncFeedsToBackend(true);
-  toast('Feed removed');
-}
-window.removeFeed = removeFeed;
-
-function extractName(url) {
-  try {
-    return new URL(url).hostname.replace('www.', '').split('.')[0];
-  } catch { return 'Feed'; }
-}
-
-function renderFeedList() {
-  const ul = document.getElementById('feedList');
-  if (!feeds.length) {
-    ul.innerHTML = '<li style="font-size:12px;color:var(--ink-4);padding:8px 0;">No feeds added yet.</li>';
-    return;
-  }
-  ul.innerHTML = feeds.map(f => `
-    <li class="feed-list-item">
-      <span class="feed-list-name">${esc(f.name)}</span>
-      <span class="feed-list-url">${esc(f.url)}</span>
-      <button class="feed-remove" onclick="removeFeed('${esc(f.id)}')" title="Remove">×</button>
-    </li>
-  `).join('');
-}
-
-function renderFeedFilter() {
-  const sel = document.getElementById('feedFilter');
-  const cur = sel.value;
-  sel.innerHTML = '<option value="all">All Feeds</option>' +
-    feeds.map(f => `<option value="${esc(f.id)}">${esc(f.name)}</option>`).join('');
-  sel.value = feeds.find(f => f.id === cur) ? cur : 'all';
+// Returns the set of feedIds that match the current source filter, or
+// null if the filter is 'all' (meaning: don't filter by feed at all).
+function currentFeedIdFilter() {
+  if (sourceFilterType === 'feed')  return new Set([sourceFilterValue]);
+  if (sourceFilterType === 'group') return new Set(feeds.filter(f => f.group === sourceFilterValue).map(f => f.id));
+  return null;
 }
 
 // ── ARTICLES ───────────────────────────────────────────────────
 function renderArticles() {
-  const feedId   = document.getElementById('feedFilter').value;
-  const readMode = document.getElementById('readFilter').value;
+  const feedIdSet = currentFeedIdFilter();
+  const readMode  = document.getElementById('readFilter').value;
 
   let filtered = [...articles].sort((a, b) => b.timestamp - a.timestamp);
-  if (feedId !== 'all') filtered = filtered.filter(a => a.feedId === feedId);
+  if (feedIdSet) filtered = filtered.filter(a => feedIdSet.has(a.feedId));
   if (readMode === 'unread') filtered = filtered.filter(a => !readSet.has(a.id));
   if (readMode === 'read')   filtered = filtered.filter(a => readSet.has(a.id));
   if (dateFilterFrom !== null) filtered = filtered.filter(a => a.timestamp >= dateFilterFrom);
@@ -1617,7 +1507,7 @@ function renderArticles() {
   const list = document.getElementById('articleList');
   if (!filtered.length && !feeds.length) {
     list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📡</div>
-      <h3>No feeds yet</h3><p>Click <strong>⚙ Feeds</strong> to add RSS feeds.</p></div>`;
+      <h3>Couldn't load feeds</h3><p>Check the worker connection and try again.</p></div>`;
     return;
   }
   if (!filtered.length) {
@@ -1661,13 +1551,14 @@ function openArticle(e, id, url) {
 window.openArticle = openArticle;
 
 function markAllRead() {
-  const feedId   = document.getElementById('feedFilter').value;
-  const readMode = document.getElementById('readFilter').value;
+  const feedIdSet = currentFeedIdFilter();
+  const readMode  = document.getElementById('readFilter').value;
   let targets = [...articles];
-  if (feedId !== 'all') targets = targets.filter(a => a.feedId === feedId);
+  if (feedIdSet) targets = targets.filter(a => feedIdSet.has(a.feedId));
   if (readMode === 'unread') targets = targets.filter(a => !readSet.has(a.id));
   targets.forEach(a => readSet.add(a.id));
   saveRead();
+  renderSourceDrawer();
   renderArticles();
   toast(`Marked ${targets.length} as read`);
 }
@@ -1686,72 +1577,6 @@ function clearAllLocal() {
   readSet = new Set();
   renderArticles();
   toast('Local data cleared');
-}
-
-// ── SUMMARY ────────────────────────────────────────────────────
-function getSummaryPrompt() {
-  return localStorage.getItem(STORAGE.PROMPT) || DEFAULT_PROMPT;
-}
-
-async function generateSummary() {
-  const btn = document.getElementById('generateSummaryBtn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Generating…';
-  const unread = articles.filter(a => !readSet.has(a.id)).slice(0, 150);
-  if (!unread.length) {
-    toast('No unread articles');
-    btn.disabled = false;
-    btn.textContent = 'Generate summary';
-    return;
-  }
-  const headlineBlock = unread.map((a, i) =>
-    `${i + 1}. [${a.feedName}] ${a.title}${a.description ? ` — ${a.description.slice(0, 120)}` : ''}`
-  ).join('\n');
-  try {
-    const res = await fetch(GAS_URL, {
-      method:  'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body:    JSON.stringify({
-        action: 'generateSummary',
-        headlines: `Here are ${unread.length} unread headlines:\n\n${headlineBlock}`,
-        prompt: getSummaryPrompt(),
-      }),
-    });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Failed');
-    renderSummary(markdownToHtml(data.summary.rawText), data.summary.meta);
-    toast('Summary generated');
-  } catch (err) {
-    document.getElementById('summaryBody').innerHTML =
-      `<div class="summary-placeholder"><div class="icon">⚠</div><p style="color:var(--accent)">${esc(err.message)}</p></div>`;
-    toast('Error: ' + err.message);
-  }
-  btn.disabled = false;
-  btn.textContent = 'Generate summary';
-}
-
-function renderSummary(html, meta) {
-  document.getElementById('summaryBody').innerHTML = html;
-  document.getElementById('summaryMeta').textContent = meta || '';
-}
-
-function markdownToHtml(md) {
-  return md
-    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^## (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^# (.+)$/gm, '<h3>$1</h3>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/^[\-\*] (.+)$/gm, '<li>$1</li>')
-    .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
-    .split(/\n{2,}/)
-    .map(p => {
-      p = p.trim();
-      if (!p) return '';
-      if (p.startsWith('<h') || p.startsWith('<ul>')) return p;
-      return `<p>${p.replace(/\n/g, ' ')}</p>`;
-    })
-    .join('\n');
 }
 
 // ── THEME / MODAL / TOAST ──────────────────────────────────────
@@ -1850,6 +1675,11 @@ function fmtTxnNum(n) {
 function fmtTxnPct(n) {
   if (n === null || n === undefined || isNaN(n)) return '—';
   return Number(n).toFixed(2) + '%';
+}
+function txnSortKey(t) {
+  const raw = t.settlementDate || t.filingDate || t.timestamp;
+  const d   = new Date(raw);
+  return isNaN(d) ? (t.timestamp || 0) : d.getTime();
 }
 function fmtTxnDate(iso) {
   if (!iso) return '—';
@@ -1964,7 +1794,11 @@ function renderTxnTable() {
     return;
   }
 
-  rows.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  // Sort by the date actually shown in the Date column (settlement date,
+  // falling back to filing date, then fetch timestamp) — not by internal
+  // fetch timestamp, which could drift from the displayed date and made
+  // the table look out of order.
+  rows.sort((a, b) => txnSortKey(b) - txnSortKey(a));
 
   tbody.innerHTML = rows.map(t => {
     const ac      = (t.assetClass || '').toLowerCase();
