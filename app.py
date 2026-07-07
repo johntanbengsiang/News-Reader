@@ -29,7 +29,7 @@ MANIFEST = {
     "scope": "/",
     "id": "/",
     "display": "standalone",
-    "display_override": ["standalone", "fullscreen", "minimal-ui"],
+    "display_override": ["fullscreen", "standalone", "minimal-ui"],
     "orientation": "portrait",
     "background_color": "#000000",
     "theme_color": "#c0392b",
