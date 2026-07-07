@@ -1098,6 +1098,13 @@
         be silently lost — use the ☰ button next to the Dispatch title to filter by source.
         To add, remove, or rename a feed, edit <code>worker.js</code> and redeploy.
       </p>
+      <div style="margin-top: 16px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--rule);">
+        <h4 style="font-size: 13px; margin-bottom: 8px;">Background Sync & Notifications</h4>
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+          <input type="checkbox" id="pushToggle" onchange="toggleNotifications()">
+          Enable Push Notifications & Background Sync
+        </label>
+      </div>
       <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">
         <button class="toolbar-btn danger" id="clearReadBtn">Clear read history</button>
         <button class="toolbar-btn danger" id="clearAllBtn">Clear local data</button>
@@ -1414,13 +1421,20 @@ function attachEventListeners() {
 
   // Source filter drawer
   document.getElementById('sourceDrawerBtn').addEventListener('click', () => {
-    // Filtering only makes sense on the Feed tab — switch there first.
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
-    document.querySelector('.tab-btn[data-tab="feed"]').classList.add('active');
-    document.getElementById('pane-feed').classList.add('active');
-    openDrawer();
+    const activeTab = document.querySelector('.tab-btn.active').dataset.tab;
+    
+    if (activeTab === 'x') {
+      // If on X page, programmatically open your native X account selector
+      const xDropdown = document.getElementById('xSourceFilter');
+      if (xDropdown) xDropdown.focus(); 
+    } else if (activeTab === 'reits') {
+       toast('Filter applies to Feed and X tabs');
+    } else {
+      // Default to opening the standard news drawer
+      openDrawer();
+    }
   });
+  
   document.getElementById('closeSourceDrawer').addEventListener('click', closeDrawer);
   document.getElementById('sourceDrawerOverlay').addEventListener('click', closeDrawer);
 
@@ -1764,8 +1778,10 @@ function renderArticleRow(a) {
   const read  = readSet.has(a.id);
   const desc  = cleanDescription(a.description).slice(0, 200);
   const thumb = a.imageUrl
-    ? `<div class="article-thumb-wrap"><img src="${esc(a.imageUrl)}" loading="lazy" alt=""
-         onerror="this.parentElement.classList.add('empty');this.parentElement.textContent='${esc((a.feedName || '?').charAt(0).toUpperCase())}';"></div>`
+    ? `<div class="article-thumb-wrap" onclick="shareArticle(event, '${esc(a.title)}', '${esc(a.link)}')" style="cursor:pointer;" title="Share Article">
+         <img src="${esc(a.imageUrl)}" loading="lazy" alt=""
+         onerror="this.parentElement.classList.add('empty');this.parentElement.textContent='${esc((a.feedName || '?').charAt(0).toUpperCase())}';">
+       </div>`
     : `<div class="article-thumb-wrap empty">${esc((a.feedName || '?').charAt(0).toUpperCase())}</div>`;
 
   // For X-sourced articles, offer a direct deep link into the X app
@@ -2268,10 +2284,49 @@ function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js', { scope: '/' })
-      .then(reg => console.log('SW registered, scope:', reg.scope))
+      .then(async (reg) => {
+        console.log('SW registered, scope:', reg.scope);
+        
+        // Auto-register periodic sync if permission was already granted previously
+        if ('periodicSync' in reg && localStorage.getItem('dispatch_push_enabled') === 'true') {
+          try {
+            await reg.periodicSync.register('fetch-latest-news', {
+              minInterval: 12 * 60 * 60 * 1000 // 12 hours
+            });
+            console.log('Periodic background sync registered.');
+          } catch (err) {
+            console.warn('Periodic sync failed to register:', err);
+          }
+        }
+      })
       .catch(err => console.warn('SW register failed:', err));
   });
+  
+  // Set initial state of the checkbox
+  setTimeout(() => {
+    const pushToggle = document.getElementById('pushToggle');
+    if (pushToggle) pushToggle.checked = localStorage.getItem('dispatch_push_enabled') === 'true';
+  }, 500);
 }
+
+// Logic for the Settings Toggle Checkbox
+async function toggleNotifications() {
+  const isChecked = document.getElementById('pushToggle').checked;
+  if (isChecked) {
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      localStorage.setItem('dispatch_push_enabled', 'true');
+      toast('Notifications & background sync enabled!');
+    } else {
+      document.getElementById('pushToggle').checked = false;
+      toast('Permission denied by system.');
+    }
+  } else {
+    localStorage.removeItem('dispatch_push_enabled');
+    toast('Notifications disabled.');
+  }
+}
+window.toggleNotifications = toggleNotifications;
 
 // beforeinstallprompt: Chrome fires this when the PWA is installable.
 // We store the event so we can trigger install via a UI button later
@@ -2290,6 +2345,21 @@ window.addEventListener('appinstalled', () => {
   toast('Installed. Launch from home screen for full-screen mode.');
 });
 
+async function shareArticle(e, title, url) {
+  e.stopPropagation(); // Stop the row click from opening the article
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: title, url: url });
+    } catch (err) {
+      console.log('User cancelled share or share failed:', err);
+    }
+  } else {
+    navigator.clipboard.writeText(url);
+    toast('Link copied to clipboard!');
+  }
+}
+window.shareArticle = shareArticle;
+  
 // ── BOOT ───────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   registerServiceWorker();
