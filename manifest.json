@@ -5,12 +5,20 @@
   "start_url": "/",
   "scope": "/",
   "id": "/",
-  "display": "standalone",
-  "display_override": ["standalone", "fullscreen", "minimal-ui"],
-  "orientation": "portrait",
+  "display": "fullscreen",
+  "display_override": [
+    "standalone",
+    "fullscreen",
+    "minimal-ui"
+  ],
+  "orientation": "portrait-primary",
   "background_color": "#000000",
   "theme_color": "#c0392b",
-  "categories": ["news", "finance", "productivity"],
+  "categories": [
+    "news",
+    "finance",
+    "productivity"
+  ],
   "prefer_related_applications": false,
   "icons": [
     {
@@ -25,5 +33,7 @@
       "type": "image/svg+xml",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "dir": "auto",
+  "lang": "en"
 }
