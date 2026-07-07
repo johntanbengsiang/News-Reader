@@ -3,7 +3,7 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "REPLACE_WITH_YOUR_PACKAGE_NAME",
+      "package_name": "Dispatch",
       "sha256_cert_fingerprints": [
         "REPLACE:WITH:YOUR:SHA256:FINGERPRINT:FROM:PWABUILDER"
       ]
