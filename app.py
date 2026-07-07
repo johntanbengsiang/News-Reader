@@ -35,6 +35,8 @@ MANIFEST = {
     "theme_color": "#c0392b",
     "categories": ["news", "finance", "productivity"],
     "prefer_related_applications": False,
+    "dir": "ltr",
+    "lang": "en",
     "icons": [
         {
             "src": "/icon.svg",
@@ -47,6 +49,18 @@ MANIFEST = {
             "sizes": "any",
             "type": "image/svg+xml",
             "purpose": "maskable"
+        },
+        {
+            "src": "/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
         }
     ]
 }
@@ -183,6 +197,33 @@ async def serve_icon_maskable():
         media_type="image/svg+xml",
         headers={"Cache-Control": "public, max-age=86400"},
     )
+
+
+# PNG icons — upload icon-192.png / icon-512.png to the same folder as
+# this file. Returns 404 (rather than crashing) until they're there, so
+# the rest of the app keeps working in the meantime.
+@app.get("/icon-192.png")
+async def serve_icon_192():
+    if not os.path.exists("icon-192.png"):
+        return Response(status_code=404)
+    with open("icon-192.png", "rb") as f:
+        return Response(
+            content=f.read(),
+            media_type="image/png",
+            headers={"Cache-Control": "public, max-age=86400"},
+        )
+
+
+@app.get("/icon-512.png")
+async def serve_icon_512():
+    if not os.path.exists("icon-512.png"):
+        return Response(status_code=404)
+    with open("icon-512.png", "rb") as f:
+        return Response(
+            content=f.read(),
+            media_type="image/png",
+            headers={"Cache-Control": "public, max-age=86400"},
+        )
 
 
 # Apple touch icon fallback (iOS Safari doesn't use manifest icons)
