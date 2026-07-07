@@ -2369,6 +2369,14 @@ window.addEventListener('appinstalled', () => {
 
 async function shareArticle(e, title, url) {
   e.stopPropagation(); // Stop the row click from opening the article
+  
+  // 1. Check if we are inside the Android App Wrapper
+  if (window.AndroidNative && window.AndroidNative.shareToAndroid) {
+      window.AndroidNative.shareToAndroid(title, url);
+      return; // Stop here, Android took over!
+  }
+  
+  // 2. Fallback for normal web browsers (Chrome, Safari, etc.)
   if (navigator.share) {
     try {
       await navigator.share({ title: title, url: url });
