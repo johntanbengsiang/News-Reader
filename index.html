@@ -1810,14 +1810,35 @@ function renderArticleRow(a) {
     </div>`;
 }
 
-// Parses a twitter.com/x.com status URL into a twitter:// app deep link.
-// Returns null if the link doesn't look like a single-post URL (the
-// twitter:// scheme is unofficial/undocumented and could stop working in
-// a future X app update — falls back to the normal browser link if so).
+// Parses a twitter.com/x.com status URL into a platform-appropriate deep
+// link. Returns null if the link doesn't look like a single-post URL.
+//
+// A bare "twitter://status?id=..." link throws net::ERR_UNKNOWN_URL_SCHEME
+// whenever the OS/WebView has no app registered for that exact scheme —
+// e.g. the X app isn't installed, or you're inside a plain WebView-based
+// APK wrapper that doesn't resolve custom schemes at all. It's a hard
+// failure either way.
+//
+// Android fix: use an intent:// URL instead. Chrome — and Trusted Web
+// Activity wrappers (what most "PWA to APK" tools produce), which run on
+// Chrome under the hood — parse intent:// natively: it names the target
+// package AND a browser_fallback_url, so if the app can't be resolved it
+// just opens the fallback instead of erroring.
+//
+// iOS / desktop: skip the custom scheme entirely and use the plain https
+// link. If the X app is installed, iOS Universal Links hand off to it
+// automatically when the user taps; if not, it just opens the tweet in
+// the browser. Either way, it can never throw a scheme error.
 function xTweetDeepLink(link) {
   if (!link) return null;
   const m = String(link).match(/(?:twitter|x)\.com\/[^/]+\/status(?:es)?\/(\d+)/i);
-  return m ? `twitter://status?id=${m[1]}` : null;
+  if (!m) return null;
+  const id = m[1];
+  const fallback = `https://x.com/i/status/${id}`;
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  if (!isAndroid) return fallback;
+  return `intent://status?id=${id}#Intent;scheme=twitter;package=com.twitter.android;` +
+         `S.browser_fallback_url=${encodeURIComponent(fallback)};end`;
 }
 
 // Marks an article read without navigating anywhere — used by the
