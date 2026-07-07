@@ -1248,12 +1248,17 @@ async function init() {
   syncThemeIcon();
   renderMastheadDate();
   attachEventListeners();
+  
+  // loadFromBackend now handles both the initial cache load AND the network fetch
   await loadFromBackend();
-  renderSourceDrawer();
-  updateFilterLabel();
-  renderArticles();
+  
+  // These are handled inside loadFromBackend now, so we can remove them here to avoid double-rendering:
+  // renderSourceDrawer();
+  // updateFilterLabel();
+  // renderArticles();
+  
   startPolling();
-  silentBackgroundFetch();
+  // REMOVE THIS LINE: silentBackgroundFetch();
 }
 
 function loadLocalPrefs() {
@@ -1283,19 +1288,61 @@ function saveReitRead() {
 // ── BACKEND ────────────────────────────────────────────────────
 async function loadFromBackend() {
   setStatus('fetching');
+  
+  // 1. INSTANT BOOT: Load from Cache First
+  const cachedData = localStorage.getItem('dispatch_news_cache');
+  if (cachedData) {
+    try {
+      const data = JSON.parse(cachedData);
+      feeds       = data.feeds       || [];
+      articles    = data.articles    || [];
+      lastFetch   = data.lastFetch   || null;
+      fetchErrors = data.fetchErrors || [];
+      xFeedIdSet  = new Set(feeds.filter(f => f.platform === 'x').map(f => f.id));
+      populateXSourceFilter();
+      
+      // Render the UI immediately with cached data
+      renderSourceDrawer();
+      updateFilterLabel();
+      renderArticles();
+      if (document.getElementById('pane-x')?.classList.contains('active')) renderXArticles();
+      
+      setStatus('live'); // Show it's live, even if it's cached data initially
+    } catch (e) {
+      console.warn('Failed to parse cached data:', e);
+    }
+  }
+
+  // 2. BACKGROUND FETCH: Get fresh data from the network
   try {
     const res  = await fetch(GAS_URL);
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
     const data = await res.json();
+    
+    // Save fresh data to cache for next time
+    localStorage.setItem('dispatch_news_cache', JSON.stringify(data));
+
+    // Update state variables
     feeds       = data.feeds       || [];
     articles    = data.articles    || [];
     lastFetch   = data.lastFetch   || null;
     fetchErrors = data.fetchErrors || [];
     xFeedIdSet  = new Set(feeds.filter(f => f.platform === 'x').map(f => f.id));
+    
     populateXSourceFilter();
+    
+    // Silently re-render the UI with the fresh data
+    renderSourceDrawer();
+    updateFilterLabel();
+    renderArticles();
+    if (document.getElementById('pane-x')?.classList.contains('active')) renderXArticles();
+
     setStatus('live');
   } catch (e) {
-    console.error('loadFromBackend failed:', e);
-    toast('Failed to load data');
+    console.error('loadFromBackend network fetch failed:', e);
+    if (!cachedData) {
+        toast('Failed to load data');
+    }
     setStatus('idle');
   }
 }
