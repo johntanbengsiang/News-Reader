@@ -584,7 +584,12 @@
   }
   .txn-chip:hover { border-color: var(--ink-3); color: var(--ink); }
   .txn-chip.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-  .txn-scroll { max-height: 340px; overflow: auto; }
+  .txn-scroll { max-height: 340px; overflow: auto; transition: max-height 0.15s ease; }
+  /* When the REIT feed list (below the table) is hidden, let the table
+     claim most of the viewport instead of being capped at 340px. */
+  #pane-reits.feeds-hidden .reit-body { display: none; }
+  #pane-reits.feeds-hidden .txn-panel { margin-bottom: 0; }
+  #pane-reits.feeds-hidden .txn-scroll { max-height: calc(100vh - 230px); }
   .txn-table { width: 100%; border-collapse: collapse; font-size: 12px; font-family: var(--sans); }
   .txn-table thead th {
     position: sticky; top: 0; z-index: 1;
@@ -850,6 +855,7 @@
     .txn-scroll { max-height: 260px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .txn-table { min-width: 720px; font-size: 11px; }
     .txn-table thead th, .txn-table tbody td { padding: 6px 8px; }
+    #pane-reits.feeds-hidden .txn-scroll { max-height: calc(100vh - 200px); }
     .article-count { font-size: 10px; }
     .pdf-modal-overlay { padding: 0; }
     .pdf-modal { height: 100vh; max-width: none; border-radius: 0; }
@@ -940,6 +946,7 @@
   <div class="reit-toolbar">
     <button class="toolbar-btn" id="reitFetchBtn">⚡ Fetch now</button>
     <button class="toolbar-btn primary" id="reitExtractBtn" title="Run Gemini on new filings">✦ Extract deals</button>
+    <button class="toolbar-btn" id="toggleReitFeedsBtn" title="Hide the filing list below and expand the table">⤢ Hide feeds</button>
     <span class="article-count" id="reitCount"></span>
   </div>
 
@@ -1041,7 +1048,8 @@
 const GAS_URL = 'https://dispatch.dispatch-news.workers.dev/';
 
 const STORAGE = {
-  READ: 'dispatch_read',
+  READ:              'dispatch_read',
+  REIT_FEEDS_HIDDEN: 'dispatch_reit_feeds_hidden',
 };
 
 // ── STATE ──────────────────────────────────────────────────────
@@ -1333,6 +1341,8 @@ function attachEventListeners() {
   // REIT fetch + extract
   document.getElementById('reitFetchBtn').addEventListener('click', silentReitFetch);
   document.getElementById('reitExtractBtn').addEventListener('click', runReitExtract);
+  document.getElementById('toggleReitFeedsBtn').addEventListener('click', toggleReitFeeds);
+  setReitFeedsHidden(localStorage.getItem(STORAGE.REIT_FEEDS_HIDDEN) === '1');
 
   // Txn table filter chips — three independent groups (type / asset / location)
   function bindChipGroup(attr, setter) {
@@ -1517,6 +1527,31 @@ function renderArticles() {
   }
 
   list.innerHTML = filtered.map(a => renderArticleRow(a)).join('');
+  observeArticleRowsForAutoRead();
+}
+
+// ── AUTO-READ ON SCROLL ─────────────────────────────────────────
+// Marks an article read once the user has scrolled past it — i.e. it
+// exits the viewport past the TOP. Rows that leave from the bottom
+// (scrolled to, not yet reached) are left alone. Re-run after every
+// renderArticles() since innerHTML is rebuilt each time.
+let articleReadObserver = null;
+function observeArticleRowsForAutoRead() {
+  if (articleReadObserver) articleReadObserver.disconnect();
+  articleReadObserver = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) return;              // still visible
+      if (entry.boundingClientRect.top >= 0) return;  // below viewport — not reached yet
+      const id = entry.target.dataset.articleId;
+      articleReadObserver.unobserve(entry.target);
+      if (!id || readSet.has(id)) return;
+      readSet.add(id);
+      saveRead();
+      entry.target.classList.add('read');
+      renderSourceDrawer(); // keep unread counts live; doesn't touch scroll position
+    });
+  }, { threshold: 0 });
+  document.querySelectorAll('#articleList .article-row').forEach(row => articleReadObserver.observe(row));
 }
 
 function renderArticleRow(a) {
@@ -1528,7 +1563,7 @@ function renderArticleRow(a) {
     : `<div class="article-thumb-wrap empty">${esc((a.feedName || '?').charAt(0).toUpperCase())}</div>`;
 
   return `
-    <div class="article-row${read ? ' read' : ''}" onclick="openArticle(event, '${esc(a.id)}', '${esc(a.link)}')">
+    <div class="article-row${read ? ' read' : ''}" data-article-id="${esc(a.id)}" onclick="openArticle(event, '${esc(a.id)}', '${esc(a.link)}')">
       ${thumb}
       <div class="article-body">
         <div class="article-row-top">
@@ -1695,6 +1730,12 @@ function isMissing(v) {
   const s = String(v).toLowerCase().trim();
   return s === '' || s === 'null' || s === 'none' || s === 'n/a';
 }
+// Same idea but also catches NaN, which isMissing's string check misses
+// for numeric fields like appraisalJpyMn / yieldPct.
+function isMissingNum(v) {
+  if (typeof v === 'number') return !Number.isFinite(v);
+  return isMissing(v);
+}
 
 function matchAssetClass(t, filter) {
   if (filter === 'all') return true;
@@ -1768,7 +1809,10 @@ function renderTxnTable() {
     .filter(t => {
       const p = Number(t.priceJpyMn);
       return Number.isFinite(p) && p > 0;
-    });
+    })
+    // Drop rows where price is the only figure extracted — no appraisal
+    // value and no yield makes the row too thin to be useful.
+    .filter(t => !isMissingNum(t.appraisalJpyMn) || !isMissingNum(t.yieldPct));
   const rows = all
     .filter(t => matchTxnType(t, txnFilterType))
     .filter(t => matchAssetClass(t, txnFilterAsset))
@@ -1948,6 +1992,21 @@ function renderReitRow(a) {
     </div>
     <div class="reit-time">${relativeTime(a.timestamp)}</div>
   </div>`;
+}
+
+// Hide/show the per-filing REIT feed list below the transactions table,
+// so the table can expand to (near) full screen. Preference persists
+// across sessions.
+function setReitFeedsHidden(hidden) {
+  const pane = document.getElementById('pane-reits');
+  const btn  = document.getElementById('toggleReitFeedsBtn');
+  pane.classList.toggle('feeds-hidden', hidden);
+  btn.textContent = hidden ? '⤡ Show feeds' : '⤢ Hide feeds';
+  localStorage.setItem(STORAGE.REIT_FEEDS_HIDDEN, hidden ? '1' : '0');
+}
+function toggleReitFeeds() {
+  const pane = document.getElementById('pane-reits');
+  setReitFeedsHidden(!pane.classList.contains('feeds-hidden'));
 }
 
 // Open filing in a new tab. Gemini extraction (into the txn table above)
