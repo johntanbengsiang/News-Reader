@@ -137,19 +137,14 @@
     overflow-wrap: anywhere;
   }
   
-  /* When launched as installed app, hide any browser-fallback UI */
-  @media (display-mode: standalone), (display-mode: fullscreen) {
-    body::before {
-      content: '';
-      display: block;
-      height: env(safe-area-inset-top);
-      background: var(--paper);
-    }
-  }
   /* ── MASTHEAD ──────────────────────────────────────────────── */
   .masthead {
     border-bottom: 3px double var(--ink);
     padding: 12px 24px 10px;
+    /* Sticky header re-pins to the real top edge of the screen on every
+       scroll, so it needs its OWN safe-area padding (not just a one-time
+       spacer before it) or it re-overlaps the status bar/notch. */
+    padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
     display: flex;
     align-items: baseline;
     gap: 20px;
@@ -884,7 +879,7 @@
     flex-wrap: wrap;
   }
   @media (max-width: 600px) {
-    .masthead { padding: 10px 14px; gap: 10px; }
+    .masthead { padding: 10px 14px; padding-top: calc(env(safe-area-inset-top, 0px) + 10px); gap: 10px; }
     .masthead-title { font-size: 20px; }
     .masthead-date { font-size: 10px; }
     .feed-toolbar { padding: 8px 14px; gap: 6px; }
