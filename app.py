@@ -151,6 +151,78 @@ self.addEventListener('fetch', event => {
       .catch(() => caches.match(SHELL_URL))
   );
 });
+
+// ── 1. PUSH NOTIFICATIONS ───────────────────────────────────────
+self.addEventListener('push', event => {
+  if (event.data) {
+    try {
+      const data = event.data.json();
+      const options = {
+        body: data.body || 'New updates are available!',
+        icon: '/icon-192.png',
+        badge: '/icon.svg',
+        data: { url: data.url || '/' },
+        vibrate: [100, 50, 100],
+        actions: [
+          { action: 'open', title: 'Read Now' }
+        ]
+      };
+      event.waitUntil(
+        self.registration.showNotification(data.title || 'Dispatch', options)
+      );
+    } catch (e) {
+      // Fallback if data payload isn't structured JSON
+      event.waitUntil(
+        self.registration.showNotification('Dispatch', {
+          body: event.data.text(),
+          icon: '/icon-192.png'
+        })
+      );
+    }
+  }
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  
+  let targetUrl = '/';
+  if (event.notification.data && event.notification.data.url) {
+    targetUrl = event.notification.data.url;
+  }
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+      // If a tab is already open, focus it and navigate to the article
+      for (let client of windowClients) {
+        if (client.url === targetUrl && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      // If no tab is open, open a new one
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
+
+// ── 2. BACKGROUND SYNC ──────────────────────────────────────────
+// Fires when connectivity is restored to push pending tasks
+self.addEventListener('sync', event => {
+  if (event.tag === 'sync-news') {
+    console.log('Background sync triggered: Fetching latest news feeds...');
+    // If you add custom background sync fetch logic, wrap it in event.waitUntil() here
+  }
+});
+
+// ── 3. PERIODIC BACKGROUND SYNC ──────────────────────────────────
+// Fires routinely in the background based on OS engagement scores
+self.addEventListener('periodicsync', event => {
+  if (event.tag === 'fetch-latest-news') {
+    console.log('Periodic background sync triggered: Pre-fetching news updates...');
+    // If you add custom periodic fetch logic, wrap it in event.waitUntil() here
+  }
+});
 """
 
 
