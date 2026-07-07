@@ -7,8 +7,8 @@
   "id": "/",
   "display": "fullscreen",
   "display_override": [
-    "standalone",
     "fullscreen",
+    "standalone",
     "minimal-ui"
   ],
   "orientation": "portrait-primary",
