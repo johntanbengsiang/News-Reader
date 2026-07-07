@@ -61,6 +61,35 @@ async def serve_manifest():
     )
 
 
+# ── TWA / DIGITAL ASSET LINKS ───────────────────────────────────
+# Proves you own this domain so the sideloaded APK (built via PWABuilder,
+# using Google's Trusted Web Activity) can run full-screen without Chrome's
+# address-bar fallback. package_name and the fingerprint come from
+# PWABuilder's Android packaging step — fill them in below once you have
+# them, they don't exist until you generate the APK.
+ASSET_LINKS = [
+    {
+        "relation": ["delegate_permission/common.handle_all_urls"],
+        "target": {
+            "namespace": "android_app",
+            "package_name": "REPLACE_WITH_YOUR_PACKAGE_NAME",
+            "sha256_cert_fingerprints": [
+                "REPLACE:WITH:YOUR:SHA256:FINGERPRINT:FROM:PWABUILDER"
+            ],
+        },
+    }
+]
+
+
+@app.get("/.well-known/assetlinks.json")
+async def serve_asset_links():
+    return JSONResponse(
+        content=ASSET_LINKS,
+        media_type="application/json",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
 # Functional service worker with a REAL fetch handler.
 # Chrome ignores empty fetch handlers, so this one actually does work:
 # - Caches the app shell on install for offline use

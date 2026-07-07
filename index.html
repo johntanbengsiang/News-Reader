@@ -591,6 +591,24 @@
     max-width: 280px;
   }
   .toast.show { opacity: 1; transform: translateY(0); }
+  /* ── SCROLL TO TOP ─────────────────────────────────────────── */
+  .scroll-top-btn {
+    position: fixed; bottom: 24px; left: 20px;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: var(--ink); color: var(--paper);
+    border: none;
+    font-size: 17px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.28);
+    opacity: 0; transform: translateY(8px) scale(0.9);
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    z-index: 40;
+  }
+  .scroll-top-btn.visible { opacity: 0.92; transform: translateY(0) scale(1); pointer-events: auto; }
+  .scroll-top-btn:hover, .scroll-top-btn:active { opacity: 1; }
   /* ── TXN TABLE ─────────────────────────────────────────────── */
   .txn-panel {
     border: 1px solid var(--rule);
@@ -1092,6 +1110,7 @@
      a new tab, and Gemini processes them into the transactions table.) -->
 
 <div class="toast" id="toast"></div>
+<button class="scroll-top-btn" id="scrollTopBtn" title="Back to top" aria-label="Back to top">↑</button>
 <script>
 /* ==============================================================
    DISPATCH — Frontend
@@ -1234,7 +1253,18 @@ function loadLocalPrefs() {
   catch { readSet = new Set(); }
 }
 
+// Merges into whatever's currently in localStorage rather than overwriting
+// it outright. If this app is open in more than one tab (easy to end up
+// with on a PWA you've added to the home screen), a naive overwrite from
+// one tab can wipe out reads another tab saved a moment earlier. Reading
+// the current value first and unioning makes this additive instead of
+// destructive, and keeps this tab's in-memory readSet in sync too.
 function saveRead() {
+  try {
+    const onDisk = new Set(JSON.parse(localStorage.getItem(STORAGE.READ)) || []);
+    readSet.forEach(id => onDisk.add(id));
+    readSet = onDisk;
+  } catch { /* corrupt/missing value on disk — fall through and just save what we have */ }
   localStorage.setItem(STORAGE.READ, JSON.stringify([...readSet]));
 }
 
@@ -1420,6 +1450,14 @@ function attachEventListeners() {
   document.getElementById('reitExtractBtn').addEventListener('click', runReitExtract);
   document.getElementById('toggleReitFeedsBtn').addEventListener('click', toggleReitFeeds);
   setReitFeedsHidden(localStorage.getItem(STORAGE.REIT_FEEDS_HIDDEN) === '1');
+
+  // Floating scroll-to-top button — shared across all tabs since they're
+  // all just sections of the one page-level scroll.
+  const scrollTopBtn = document.getElementById('scrollTopBtn');
+  window.addEventListener('scroll', () => {
+    scrollTopBtn.classList.toggle('visible', window.scrollY > 500);
+  }, { passive: true });
+  scrollTopBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
 
   // Txn table filter chips — three independent groups (type / asset / location)
   function bindChipGroup(attr, setter) {
@@ -1802,7 +1840,7 @@ function markAllRead() {
 function clearRead() {
   if (!confirm('Clear read history?')) return;
   readSet.clear();
-  saveRead();
+  localStorage.setItem(STORAGE.READ, '[]'); // bypass saveRead's merge — this should actually wipe, not union
   refreshActivePanes();
   toast('Read history cleared');
 }
