@@ -324,3 +324,13 @@ async def serve_frontend():
     with open("index.html", "r", encoding="utf-8") as f:
         html_content = f.read()
     return HTMLResponse(content=html_content)
+
+# ── WIDGET ENDPOINT ─────────────────────────────────────────────
+# This feeds the native Android widget with the single latest headline
+@app.get("/api/latest-headline")
+async def get_latest_headline():
+    # For now, this is a placeholder. 
+    # Later, you can hook this up to your database or RSS parser to grab the actual top news!
+    return JSONResponse(
+        content={"headline": "Breaking: Dispatch Aggregator successfully connected to Android Studio!"}
+    )
