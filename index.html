@@ -245,6 +245,12 @@
     cursor: pointer;
   }
   .hamburger-btn:hover { color: var(--accent); }
+  .masthead-hamburger {
+    align-self: center;
+    font-size: 19px;
+    padding: 0;
+    margin-right: -4px;
+  }
   .drawer-overlay {
     display: none;
     position: fixed; inset: 0;
@@ -483,6 +489,15 @@
     margin-top: 3px;
   }
   .article-meta .source { color: var(--accent); font-weight: 500; }
+  .x-open-btn {
+    color: var(--ink-3);
+    text-decoration: none;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-family: var(--mono);
+  }
+  .x-open-btn:hover { color: var(--accent); border-color: var(--accent); }
   .article-time { flex-shrink: 0; font-family: var(--mono); font-size: 10px; color: var(--ink-4); }
   .article-description {
     font-size: 12.5px;
@@ -867,6 +882,7 @@
 
 <!-- MASTHEAD -->
 <header class="masthead">
+  <button class="hamburger-btn masthead-hamburger" id="sourceDrawerBtn" title="Filter by source" aria-label="Filter by source">☰</button>
   <div class="masthead-title">Dis<span>patch</span></div>
   <div class="masthead-date" id="mastheadDate"></div>
   <div class="masthead-status">
@@ -878,8 +894,8 @@
 
 <!-- TABS -->
 <nav class="tabs">
-  <button class="hamburger-btn" id="sourceDrawerBtn" title="Filter by source" aria-label="Filter by source">☰</button>
   <button class="tab-btn active" data-tab="feed">Feed</button>
+  <button class="tab-btn" data-tab="x">𝕏</button>
   <button class="tab-btn" data-tab="reits">REITs</button>
 </nav>
 
@@ -937,6 +953,28 @@
       <div class="empty-state-icon">📡</div>
       <h3>Loading feeds…</h3>
       <p>If this doesn't clear, check the worker connection.</p>
+    </div>
+  </div>
+</div>
+
+<!-- X PANE -->
+<div class="pane" id="pane-x">
+  <div class="feed-toolbar">
+    <select class="feed-select" id="xSourceFilter">
+      <option value="all" selected>All accounts</option>
+    </select>
+    <select class="feed-select" id="xReadFilter">
+      <option value="all" selected>All</option>
+      <option value="unread">Unread</option>
+      <option value="read">Read</option>
+    </select>
+    <button class="toolbar-btn" id="xMarkAllReadBtn">Mark all read</button>
+    <span class="article-count" id="xArticleCount" style="margin-left:auto;"></span>
+  </div>
+  <div class="article-list" id="xArticleList">
+    <div class="empty-state">
+      <div class="empty-state-icon">𝕏</div>
+      <h3>Loading…</h3>
     </div>
   </div>
 </div>
@@ -1022,7 +1060,7 @@
     <div class="modal-body">
       <p style="font-size:12px;color:var(--ink-3);line-height:1.6;">
         Feeds are hardcoded in <code>worker.js</code> (<code>NEWS_FEEDS</code>) so they can't
-        be silently lost — use the ☰ button next to the Feed tab to filter by source.
+        be silently lost — use the ☰ button next to the Dispatch title to filter by source.
         To add, remove, or rename a feed, edit <code>worker.js</code> and redeploy.
       </p>
       <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">
@@ -1067,6 +1105,11 @@ let dateFilterTo   = null;
 // Source-filter drawer state: 'all' | 'group' | 'feed'
 let sourceFilterType  = 'all';
 let sourceFilterValue = null;
+
+// X (Twitter) tab state — feeds flagged platform:'x' in worker.js live
+// here instead of the main Feed tab.
+let xFeedIdSet        = new Set();
+let xSourceFilterValue = 'all';
 
 // REIT state
 let reitArticles     = [];
@@ -1188,6 +1231,8 @@ async function loadFromBackend() {
     articles    = data.articles    || [];
     lastFetch   = data.lastFetch   || null;
     fetchErrors = data.fetchErrors || [];
+    xFeedIdSet  = new Set(feeds.filter(f => f.platform === 'x').map(f => f.id));
+    populateXSourceFilter();
     setStatus('live');
   } catch (e) {
     console.error('loadFromBackend failed:', e);
@@ -1296,8 +1341,14 @@ function attachEventListeners() {
       btn.classList.add('active');
       document.getElementById(`pane-${btn.dataset.tab}`).classList.add('active');
       if (btn.dataset.tab === 'reits') ensureReitLoaded().then(renderReitPane);
+      if (btn.dataset.tab === 'x') renderXArticles();
     });
   });
+
+  // X tab toolbar
+  document.getElementById('xReadFilter').addEventListener('change', renderXArticles);
+  document.getElementById('xSourceFilter').addEventListener('change', renderXArticles);
+  document.getElementById('xMarkAllReadBtn').addEventListener('click', xMarkAllRead);
 
   // Feed toolbar
   document.getElementById('forceFetchBtn').addEventListener('click', forceFetchNow);
@@ -1431,11 +1482,12 @@ function renderSourceDrawer() {
   const body = document.getElementById('sourceDrawerBody');
   if (!body) return;
 
-  // Preserve first-seen order of groups as defined in NEWS_FEEDS.
+  // Preserve first-seen order of groups as defined in NEWS_FEEDS. X-platform
+  // feeds are excluded — they live in their own tab with its own filter.
   const groups = [];
-  feeds.forEach(f => { if (f.group && !groups.includes(f.group)) groups.push(f.group); });
+  feeds.forEach(f => { if (f.group && f.platform !== 'x' && !groups.includes(f.group)) groups.push(f.group); });
 
-  const totalUnread = articles.filter(a => !readSet.has(a.id)).length;
+  const totalUnread = articles.filter(a => !readSet.has(a.id) && !xFeedIdSet.has(a.feedId)).length;
   const allActive = sourceFilterType === 'all';
 
   let html = `
@@ -1504,6 +1556,7 @@ function renderArticles() {
   const readMode  = document.getElementById('readFilter').value;
 
   let filtered = [...articles].sort((a, b) => b.timestamp - a.timestamp);
+  filtered = filtered.filter(a => !xFeedIdSet.has(a.feedId)); // X feeds live in their own tab
   if (feedIdSet) filtered = filtered.filter(a => feedIdSet.has(a.feedId));
   if (readMode === 'unread') filtered = filtered.filter(a => !readSet.has(a.id));
   if (readMode === 'read')   filtered = filtered.filter(a => readSet.has(a.id));
@@ -1527,23 +1580,24 @@ function renderArticles() {
   }
 
   list.innerHTML = filtered.map(a => renderArticleRow(a)).join('');
-  observeArticleRowsForAutoRead();
+  observeRowsForAutoRead('articleList');
 }
 
 // ── AUTO-READ ON SCROLL ─────────────────────────────────────────
 // Marks an article read once the user has scrolled past it — i.e. it
 // exits the viewport past the TOP. Rows that leave from the bottom
 // (scrolled to, not yet reached) are left alone. Re-run after every
-// renderArticles() since innerHTML is rebuilt each time.
-let articleReadObserver = null;
-function observeArticleRowsForAutoRead() {
-  if (articleReadObserver) articleReadObserver.disconnect();
-  articleReadObserver = new IntersectionObserver(entries => {
+// render since innerHTML is rebuilt each time. Keyed by list element id
+// so the Feed list and the X list each keep their own observer.
+const readOnScrollObservers = {};
+function observeRowsForAutoRead(listId) {
+  if (readOnScrollObservers[listId]) readOnScrollObservers[listId].disconnect();
+  const obs = new IntersectionObserver(entries => {
     entries.forEach(entry => {
       if (entry.isIntersecting) return;              // still visible
       if (entry.boundingClientRect.top >= 0) return;  // below viewport — not reached yet
       const id = entry.target.dataset.articleId;
-      articleReadObserver.unobserve(entry.target);
+      obs.unobserve(entry.target);
       if (!id || readSet.has(id)) return;
       readSet.add(id);
       saveRead();
@@ -1551,7 +1605,57 @@ function observeArticleRowsForAutoRead() {
       renderSourceDrawer(); // keep unread counts live; doesn't touch scroll position
     });
   }, { threshold: 0 });
-  document.querySelectorAll('#articleList .article-row').forEach(row => articleReadObserver.observe(row));
+  document.querySelectorAll(`#${listId} .article-row`).forEach(row => obs.observe(row));
+  readOnScrollObservers[listId] = obs;
+}
+
+// ── X (TWITTER) TAB ──────────────────────────────────────────────
+// Rebuilds the "All accounts" dropdown from whichever feeds are flagged
+// platform:'x' server-side, preserving the current selection if it's
+// still valid.
+function populateXSourceFilter() {
+  const sel = document.getElementById('xSourceFilter');
+  if (!sel) return;
+  const xFeeds = feeds.filter(f => f.platform === 'x');
+  const prev = sel.value;
+  sel.innerHTML = `<option value="all">All accounts</option>` +
+    xFeeds.map(f => `<option value="${esc(f.id)}">${esc(f.name)}</option>`).join('');
+  sel.value = xFeeds.some(f => f.id === prev) ? prev : 'all';
+  xSourceFilterValue = sel.value;
+}
+
+function renderXArticles() {
+  const readMode = document.getElementById('xReadFilter').value;
+  xSourceFilterValue = document.getElementById('xSourceFilter').value;
+
+  let filtered = articles.filter(a => xFeedIdSet.has(a.feedId));
+  if (xSourceFilterValue !== 'all') filtered = filtered.filter(a => a.feedId === xSourceFilterValue);
+  if (readMode === 'unread') filtered = filtered.filter(a => !readSet.has(a.id));
+  if (readMode === 'read')   filtered = filtered.filter(a => readSet.has(a.id));
+  filtered.sort((a, b) => b.timestamp - a.timestamp);
+
+  document.getElementById('xArticleCount').textContent =
+    `${filtered.length} post${filtered.length !== 1 ? 's' : ''}`;
+
+  const list = document.getElementById('xArticleList');
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">✓</div>
+      <h3>All caught up</h3><p>No ${readMode === 'unread' ? 'unread ' : ''}posts to show.</p></div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(a => renderArticleRow(a)).join('');
+  observeRowsForAutoRead('xArticleList');
+}
+
+function xMarkAllRead() {
+  let targets = articles.filter(a => xFeedIdSet.has(a.feedId));
+  if (xSourceFilterValue !== 'all') targets = targets.filter(a => a.feedId === xSourceFilterValue);
+  const readMode = document.getElementById('xReadFilter').value;
+  if (readMode === 'unread') targets = targets.filter(a => !readSet.has(a.id));
+  targets.forEach(a => readSet.add(a.id));
+  saveRead();
+  renderXArticles();
+  toast(`Marked ${targets.length} as read`);
 }
 
 function renderArticleRow(a) {
@@ -1562,6 +1666,17 @@ function renderArticleRow(a) {
          onerror="this.parentElement.classList.add('empty');this.parentElement.textContent='${esc((a.feedName || '?').charAt(0).toUpperCase())}';"></div>`
     : `<div class="article-thumb-wrap empty">${esc((a.feedName || '?').charAt(0).toUpperCase())}</div>`;
 
+  // For X-sourced articles, offer a direct deep link into the X app
+  // (twitter:// scheme) alongside the normal browser open. Real <a href>
+  // so mobile browsers treat it as a user-activated link, not a JS
+  // redirect — this matters for Firefox in particular, which blocks
+  // custom-scheme navigation triggered from script.
+  const deepLink = xFeedIdSet.has(a.feedId) ? xTweetDeepLink(a.link) : null;
+  const xOpenBtn = deepLink
+    ? `<a class="x-open-btn" href="${esc(deepLink)}" title="Open in X app"
+         onclick="event.stopPropagation(); markReadOnly('${esc(a.id)}');">Open in X app</a>`
+    : '';
+
   return `
     <div class="article-row${read ? ' read' : ''}" data-article-id="${esc(a.id)}" onclick="openArticle(event, '${esc(a.id)}', '${esc(a.link)}')">
       ${thumb}
@@ -1570,10 +1685,32 @@ function renderArticleRow(a) {
           <div class="article-title">${esc(a.title)}</div>
           <div class="article-time">${relativeTime(a.timestamp)}</div>
         </div>
-        <div class="article-meta"><span class="source">${esc(a.feedName)}</span></div>
+        <div class="article-meta"><span class="source">${esc(a.feedName)}</span>${xOpenBtn}</div>
         <div class="article-description">${esc(desc)}</div>
       </div>
     </div>`;
+}
+
+// Parses a twitter.com/x.com status URL into a twitter:// app deep link.
+// Returns null if the link doesn't look like a single-post URL (the
+// twitter:// scheme is unofficial/undocumented and could stop working in
+// a future X app update — falls back to the normal browser link if so).
+function xTweetDeepLink(link) {
+  if (!link) return null;
+  const m = String(link).match(/(?:twitter|x)\.com\/[^/]+\/status(?:es)?\/(\d+)/i);
+  return m ? `twitter://status?id=${m[1]}` : null;
+}
+
+// Marks an article read without navigating anywhere — used by the
+// "Open in X app" link, whose actual navigation is handled by the
+// browser via its href, not by this handler.
+function markReadOnly(id) {
+  if (readSet.has(id)) return;
+  readSet.add(id);
+  saveRead();
+  const row = document.querySelector(`.article-row[data-article-id="${CSS.escape(id)}"]`);
+  if (row) row.classList.add('read');
+  renderSourceDrawer();
 }
 
 function openArticle(e, id, url) {
