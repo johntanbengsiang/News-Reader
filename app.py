@@ -86,9 +86,9 @@ ASSET_LINKS = [
         "relation": ["delegate_permission/common.handle_all_urls"],
         "target": {
             "namespace": "android_app",
-            "package_name": "REPLACE_WITH_YOUR_PACKAGE_NAME",
+            "package_name": "space.hf.nhtw_news.twa",
             "sha256_cert_fingerprints": [
-                "REPLACE:WITH:YOUR:SHA256:FINGERPRINT:FROM:PWABUILDER"
+                "9C:F7:79:76:CC:B8:6C:1C:EB:49:35:66:64:FE:34:BE:22:0A:16:9C:52:FB:2B:CC:7B:FE:74:1E:DF:18:13:F7"
             ],
         },
     }
