@@ -505,6 +505,23 @@
     line-height: 1.5;
     margin-top: 5px;
   }
+  .read-group-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 16px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    color: var(--ink-3);
+    cursor: pointer;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper-2);
+    user-select: none;
+  }
+  .read-group-header:hover { color: var(--accent); }
+  .read-group-caret { font-size: 9px; width: 10px; display: inline-block; }
   .empty-state {
     text-align: center;
     padding: 80px 24px;
@@ -1111,6 +1128,10 @@ let sourceFilterValue = null;
 let xFeedIdSet        = new Set();
 let xSourceFilterValue = 'all';
 
+// Whether the collapsed "N read" group is expanded, per tab.
+let feedReadGroupExpanded = false;
+let xReadGroupExpanded    = false;
+
 // REIT state
 let reitArticles     = [];
 let reitFeeds        = [];
@@ -1254,7 +1275,7 @@ async function silentBackgroundFetch() {
     const data = await res.json();
     if (data.success) {
       await loadFromBackend();
-      renderArticles();
+      refreshActivePanes();
       if (data.added > 0) toast(`${data.added} new article${data.added > 1 ? 's' : ''}`);
     }
   } catch (e) {
@@ -1281,7 +1302,7 @@ async function forceFetchNow() {
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Fetch failed');
     await loadFromBackend();
-    renderArticles();
+    refreshActivePanes();
     toast(data.added > 0 ? `${data.added} new article${data.added > 1 ? 's' : ''}` : 'No new articles');
   } catch (e) {
     toast('Fetch failed: ' + e.message);
@@ -1294,6 +1315,11 @@ async function forceFetchNow() {
 
 // Auto-refresh: fetch fresh RSS every minute. This replaces the old
 // separate "Refresh" button in the toolbar.
+function refreshActivePanes() {
+  renderArticles();
+  if (document.getElementById('pane-x')?.classList.contains('active')) renderXArticles();
+}
+
 function startPolling() {
   if (pollTimer) clearInterval(pollTimer);
   pollTimer = setInterval(() => { silentBackgroundFetch(); }, 60000);
@@ -1551,6 +1577,27 @@ function currentFeedIdFilter() {
 }
 
 // ── ARTICLES ───────────────────────────────────────────────────
+// Renders `items` (already sorted, newest first) as: unread rows shown
+// normally, then any read items collapsed under a single toggle header.
+// New articles that arrive above already-read ones therefore surface
+// clearly as unread instead of getting buried among old read rows.
+// `expanded` controls whether the collapsed group is currently open;
+// `toggleFn` is the onclick handler name (as a string) for the header.
+function renderListWithReadGroup(items, expanded, toggleFn) {
+  const unread = items.filter(a => !readSet.has(a.id));
+  const read   = items.filter(a => readSet.has(a.id));
+  let html = unread.map(a => renderArticleRow(a)).join('');
+  if (read.length) {
+    html += `
+      <div class="read-group-header" onclick="${toggleFn}">
+        <span class="read-group-caret">${expanded ? '▾' : '▸'}</span>
+        <span>${read.length} read</span>
+      </div>`;
+    if (expanded) html += read.map(a => renderArticleRow(a)).join('');
+  }
+  return html;
+}
+
 function renderArticles() {
   const feedIdSet = currentFeedIdFilter();
   const readMode  = document.getElementById('readFilter').value;
@@ -1579,7 +1626,9 @@ function renderArticles() {
     return;
   }
 
-  list.innerHTML = filtered.map(a => renderArticleRow(a)).join('');
+  list.innerHTML = readMode === 'all'
+    ? renderListWithReadGroup(filtered, feedReadGroupExpanded, "toggleReadGroup('feed')")
+    : filtered.map(a => renderArticleRow(a)).join('');
   observeRowsForAutoRead('articleList');
 }
 
@@ -1592,10 +1641,18 @@ function renderArticles() {
 const readOnScrollObservers = {};
 function observeRowsForAutoRead(listId) {
   if (readOnScrollObservers[listId]) readOnScrollObservers[listId].disconnect();
+  // A row only counts as "scrolled past" if it was actually seen on
+  // screen at some point first. Without this, a fresh poll that inserts
+  // new unread articles above your current scroll position would find
+  // those brand-new rows already sitting above the viewport at the
+  // moment they're observed, and — with no guard — instantly flag them
+  // read despite never having been shown to you.
+  const seen = new WeakSet();
   const obs = new IntersectionObserver(entries => {
     entries.forEach(entry => {
-      if (entry.isIntersecting) return;              // still visible
-      if (entry.boundingClientRect.top >= 0) return;  // below viewport — not reached yet
+      if (entry.isIntersecting) { seen.add(entry.target); return; }
+      if (!seen.has(entry.target)) return;            // never actually shown — don't touch
+      if (entry.boundingClientRect.top >= 0) return;   // below viewport — not reached yet
       const id = entry.target.dataset.articleId;
       obs.unobserve(entry.target);
       if (!id || readSet.has(id)) return;
@@ -1643,8 +1700,15 @@ function renderXArticles() {
       <h3>All caught up</h3><p>No ${readMode === 'unread' ? 'unread ' : ''}posts to show.</p></div>`;
     return;
   }
-  list.innerHTML = filtered.map(a => renderArticleRow(a)).join('');
+  list.innerHTML = readMode === 'all'
+    ? renderListWithReadGroup(filtered, xReadGroupExpanded, "toggleReadGroup('x')")
+    : filtered.map(a => renderArticleRow(a)).join('');
   observeRowsForAutoRead('xArticleList');
+}
+
+function toggleReadGroup(which) {
+  if (which === 'feed') { feedReadGroupExpanded = !feedReadGroupExpanded; renderArticles(); }
+  else                  { xReadGroupExpanded    = !xReadGroupExpanded;    renderXArticles(); }
 }
 
 function xMarkAllRead() {
@@ -1725,7 +1789,7 @@ window.openArticle = openArticle;
 function markAllRead() {
   const feedIdSet = currentFeedIdFilter();
   const readMode  = document.getElementById('readFilter').value;
-  let targets = [...articles];
+  let targets = articles.filter(a => !xFeedIdSet.has(a.feedId)); // X feeds have their own tab
   if (feedIdSet) targets = targets.filter(a => feedIdSet.has(a.feedId));
   if (readMode === 'unread') targets = targets.filter(a => !readSet.has(a.id));
   targets.forEach(a => readSet.add(a.id));
@@ -1739,7 +1803,7 @@ function clearRead() {
   if (!confirm('Clear read history?')) return;
   readSet.clear();
   saveRead();
-  renderArticles();
+  refreshActivePanes();
   toast('Read history cleared');
 }
 
