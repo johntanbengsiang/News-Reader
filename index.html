@@ -645,6 +645,14 @@
   }
   .txn-title { font-family: var(--serif); font-size: 15px; font-weight: 600; color: var(--ink); }
   .txn-sub   { font-family: var(--mono); font-size: 10px; color: var(--ink-3); margin-top: 2px; }
+  .txn-errors {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--red, #ff6b5e);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+  .txn-error-row { color: var(--ink-3); margin-top: 1px; }
   .txn-filter-group { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
   .txn-filter { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
   .txn-chip {
@@ -1050,6 +1058,7 @@
       <div>
         <div class="txn-title">Recent transactions</div>
         <div class="txn-sub" id="txnMeta">—</div>
+        <div class="txn-errors" id="txnErrorPanel" style="display:none;"></div>
       </div>
       <div class="txn-filter-group">
         <div class="txn-filter">
@@ -1190,6 +1199,7 @@ let reitArticles     = [];
 let reitFeeds        = [];
 let reitTransactions = [];
 let reitExtractRun   = null;
+let reitExtractErrors = [];
 let reitReadSet      = new Set(JSON.parse(localStorage.getItem('dispatch_reit_read') || '[]'));
 let reitFetching     = false;
 let reitExtracting   = false;
@@ -2089,6 +2099,7 @@ async function loadReitData() {
     reitArticles     = data.articles     || [];
     reitTransactions = data.transactions || [];
     reitExtractRun   = data.extractLastRun || null;
+    reitExtractErrors = data.extractErrors || [];
     renderTxnTable();
   } catch (e) {
     console.warn('Failed to load REIT data', e);
@@ -2109,6 +2120,7 @@ async function runReitExtract() {
     });
     const data = await res.json();
     const errs     = Array.isArray(data.errors) ? data.errors : [];
+    reitExtractErrors = errs;
     const quotaHit = errs.some(e => {
       const s = String(e.error || '').toLowerCase();
       return s.includes('429') || s.includes('quota') || s.includes('rate limit') || s.includes('rate-lim');
@@ -2119,13 +2131,19 @@ async function runReitExtract() {
     } else if (quotaHit) {
       msg = 'Gemini quota / rate limit hit. Wait a few minutes and retry.';
     } else if (errs.length) {
-      msg = `Extraction errors on ${errs.length} filing${errs.length === 1 ? '' : 's'}`;
+      // Show the actual error text, not just a count — a generic "N filings
+      // failed" toast gives no way to tell a broken link apart from a
+      // Gemini timeout apart from a Gist write failure without checking
+      // Cloudflare logs, which may not be available (e.g. observability off).
+      const detail = errs.slice(0, 2).map(e => e.error).join(' | ');
+      msg = `Extraction errors on ${errs.length} filing${errs.length === 1 ? '' : 's'}: ${detail}`;
     } else if (data.success) {
       msg = `Scanned ${data.scanned || 0} filing${data.scanned === 1 ? '' : 's'}, no new rows`;
     } else {
       msg = data.error || 'Extraction failed';
     }
     if (data.success || data.added > 0) await loadReitData();
+    else renderTxnTable(); // refresh the error panel even when nothing new was added
     toast(msg);
   } catch (e) {
     console.error('Extract failed:', e);
@@ -2262,6 +2280,23 @@ function renderTxnTable() {
   if (txnFilterLoc   !== 'all') filterBits.push(txnFilterLoc);
   const filterLabel = filterBits.length ? ` · filtered: ${filterBits.join(' / ')}` : '';
   meta.textContent = `${rows.length} of ${all.length} deal${all.length === 1 ? '' : 's'}${filterLabel} · ${runTs}`;
+
+  // Persistent error detail — the extract toast disappears in a few
+  // seconds, which isn't enough time to actually read what failed,
+  // especially with Cloudflare observability off and no other way to see
+  // the real error text. Keep the last run's failures visible until the
+  // next successful extract clears them.
+  const errPanel = document.getElementById('txnErrorPanel');
+  if (errPanel) {
+    if (reitExtractErrors && reitExtractErrors.length) {
+      errPanel.style.display = '';
+      errPanel.innerHTML = `⚠ ${reitExtractErrors.length} filing${reitExtractErrors.length === 1 ? '' : 's'} failed last run: ` +
+        reitExtractErrors.map(e => `<div class="txn-error-row">${esc(e.filingId || '?')} — ${esc(e.error || 'unknown error')}</div>`).join('');
+    } else {
+      errPanel.style.display = 'none';
+      errPanel.innerHTML = '';
+    }
+  }
 
   if (!rows.length) {
     tbody.innerHTML = `<tr><td colspan="11" class="txn-empty">${
