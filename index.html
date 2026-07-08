@@ -500,6 +500,32 @@
     line-height: 1.5;
     margin-top: 5px;
   }
+  .related-chip {
+    background: var(--cluster);
+    color: var(--cluster-b);
+    border: 1px solid var(--cluster-b);
+    border-radius: 10px;
+    font-size: 10px;
+    font-family: var(--mono);
+    padding: 1px 7px;
+    margin-left: 6px;
+    cursor: pointer;
+  }
+  .related-list {
+    margin-top: 7px;
+    border-top: 1px dashed var(--cluster-b);
+    padding-top: 7px;
+  }
+  .related-item { padding: 3px 0; cursor: pointer; }
+  .related-item:hover .related-title { text-decoration: underline; }
+  .related-source {
+    font-size: 10px;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    color: var(--cluster-b);
+    margin-right: 6px;
+  }
+  .related-title { font-size: 12px; color: var(--ink-2); }
   .read-group-header {
     display: flex;
     align-items: center;
@@ -1676,6 +1702,63 @@ function currentFeedIdFilter() {
   return null;
 }
 
+// ── SCROLL ANCHORING ──────────────────────────────────────────────
+// renderArticles()/renderXArticles() fully rebuild list.innerHTML on every
+// poll (every 60s). If new articles land above the rows you're currently
+// reading, the page's scrollY doesn't move with them — so the same
+// scrollY now points at older content that used to sit higher up, and it
+// feels like the feed "jumped backward" while the toast claims new
+// articles arrived (they're just off-screen, above you). These two
+// helpers snapshot whichever row is at the top of the viewport before a
+// re-render, then nudge scrollY after so that same row stays put.
+function captureScrollAnchor(listId) {
+  const list = document.getElementById(listId);
+  if (!list) return null;
+  const rows = list.querySelectorAll('.article-row');
+  for (const row of rows) {
+    const rect = row.getBoundingClientRect();
+    if (rect.bottom > 0) return { id: row.dataset.articleId, offset: rect.top };
+  }
+  return null;
+}
+
+function restoreScrollAnchor(listId, anchor) {
+  if (!anchor || !anchor.id) return;
+  const list = document.getElementById(listId);
+  if (!list) return;
+  const row = list.querySelector(`.article-row[data-article-id="${CSS.escape(anchor.id)}"]`);
+  if (!row) return; // anchor row got filtered out (e.g. read-group collapsed) — leave scroll as-is
+  const delta = row.getBoundingClientRect().top - anchor.offset;
+  if (delta !== 0) window.scrollBy(0, delta);
+}
+
+// ── STORY CLUSTERING ─────────────────────────────────────────────
+// Groups articles that share a server-assigned clusterId (see
+// dedupeAndCluster in worker.js — token-similarity match across
+// publishers, e.g. Reuters + Bloomberg covering the same event) so they
+// render as one row with a "+N sources" chip instead of near-duplicate
+// entries. Applied last, after all other filters, over whatever's still
+// visible — so the count on the chip always matches what you could
+// actually tap through to from the current view. Since `items` is sorted
+// newest-first, the first article seen for a clusterId becomes the
+// primary row and the rest are attached as `_related`.
+function collapseClusters(items) {
+  const primaries = new Map(); // clusterId -> primary article
+  const out = [];
+  for (const a of items) {
+    if (!a.clusterId) { out.push(a); continue; }
+    const primary = primaries.get(a.clusterId);
+    if (!primary) {
+      a._related = [];
+      primaries.set(a.clusterId, a);
+      out.push(a);
+    } else {
+      primary._related.push(a);
+    }
+  }
+  return out;
+}
+
 // ── ARTICLES ───────────────────────────────────────────────────
 // Renders `items` (already sorted, newest first) as: unread rows shown
 // normally, then any read items collapsed under a single toggle header.
@@ -1709,12 +1792,14 @@ function renderArticles() {
   if (readMode === 'read')   filtered = filtered.filter(a => readSet.has(a.id));
   if (dateFilterFrom !== null) filtered = filtered.filter(a => a.timestamp >= dateFilterFrom);
   if (dateFilterTo   !== null) filtered = filtered.filter(a => a.timestamp <= dateFilterTo);
+  filtered = collapseClusters(filtered);
 
   const filterLabel = (dateFilterFrom !== null || dateFilterTo !== null) ? ' · date filtered' : '';
   document.getElementById('articleCount').textContent = `${filtered.length} article${filtered.length !== 1 ? 's' : ''}${filterLabel}`;
   renderDataHorizon(articles);
 
   const list = document.getElementById('articleList');
+  const anchor = captureScrollAnchor('articleList');
   if (!filtered.length && !feeds.length) {
     list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📡</div>
       <h3>Couldn't load feeds</h3><p>Check the worker connection and try again.</p></div>`;
@@ -1730,6 +1815,7 @@ function renderArticles() {
     ? renderListWithReadGroup(filtered, feedReadGroupExpanded, "toggleReadGroup('feed')")
     : filtered.map(a => renderArticleRow(a)).join('');
   observeRowsForAutoRead('articleList');
+  restoreScrollAnchor('articleList', anchor);
 }
 
 // ── AUTO-READ ON SCROLL ─────────────────────────────────────────
@@ -1790,11 +1876,13 @@ function renderXArticles() {
   if (readMode === 'unread') filtered = filtered.filter(a => !readSet.has(a.id));
   if (readMode === 'read')   filtered = filtered.filter(a => readSet.has(a.id));
   filtered.sort((a, b) => b.timestamp - a.timestamp);
+  filtered = collapseClusters(filtered);
 
   document.getElementById('xArticleCount').textContent =
     `${filtered.length} post${filtered.length !== 1 ? 's' : ''}`;
 
   const list = document.getElementById('xArticleList');
+  const anchor = captureScrollAnchor('xArticleList');
   if (!filtered.length) {
     list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">✓</div>
       <h3>All caught up</h3><p>No ${readMode === 'unread' ? 'unread ' : ''}posts to show.</p></div>`;
@@ -1804,6 +1892,7 @@ function renderXArticles() {
     ? renderListWithReadGroup(filtered, xReadGroupExpanded, "toggleReadGroup('x')")
     : filtered.map(a => renderArticleRow(a)).join('');
   observeRowsForAutoRead('xArticleList');
+  restoreScrollAnchor('xArticleList', anchor);
 }
 
 function toggleReadGroup(which) {
@@ -1843,6 +1932,20 @@ function renderArticleRow(a) {
          onclick="event.stopPropagation(); markReadOnly('${esc(a.id)}');">Open in X app</a>`
     : '';
 
+  const related = a._related || [];
+  const relatedChip = related.length
+    ? `<button class="related-chip" onclick="event.stopPropagation(); toggleRelated('${esc(a.id)}');"
+         title="Also covered by ${related.length} other source${related.length > 1 ? 's' : ''}">+${related.length} source${related.length > 1 ? 's' : ''}</button>`
+    : '';
+  const relatedList = related.length
+    ? `<div class="related-list" id="related-${esc(a.id)}" style="display:none;">
+        ${related.map(r => `
+          <div class="related-item" onclick="event.stopPropagation(); openArticle(event, '${esc(r.id)}', '${esc(r.link)}');">
+            <span class="related-source">${esc(r.feedName)}</span><span class="related-title">${esc(r.title)}</span>
+          </div>`).join('')}
+       </div>`
+    : '';
+
   return `
     <div class="article-row${read ? ' read' : ''}" data-article-id="${esc(a.id)}" onclick="openArticle(event, '${esc(a.id)}', '${esc(a.link)}')">
       ${thumb}
@@ -1851,11 +1954,18 @@ function renderArticleRow(a) {
           <div class="article-title">${esc(a.title)}</div>
           <div class="article-time">${relativeTime(a.timestamp)}</div>
         </div>
-        <div class="article-meta"><span class="source">${esc(a.feedName)}</span>${xOpenBtn}</div>
+        <div class="article-meta"><span class="source">${esc(a.feedName)}</span>${xOpenBtn}${relatedChip}</div>
         <div class="article-description">${esc(desc)}</div>
+        ${relatedList}
       </div>
     </div>`;
 }
+
+function toggleRelated(id) {
+  const el = document.getElementById(`related-${id}`);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+window.toggleRelated = toggleRelated;
 
 // Parses a twitter.com/x.com status URL into a platform-appropriate deep
 // link. Returns null if the link doesn't look like a single-post URL.
