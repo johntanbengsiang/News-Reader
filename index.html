@@ -14,7 +14,7 @@
 <title>Dispatch — Personal News Reader</title>
 
 <!-- ── PWA / INSTALL-TO-HOMESCREEN ──────────────────────────────
-     Real same-origin manifest.json + sw.js served by app.py.
+     Real same-origin manifest.json + sw.js served as static files (Cloudflare Pages).
      Chrome / Safari treat this as installable → launches full-screen. -->
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#c0392b">
@@ -1162,7 +1162,7 @@
 ============================================================== */
 
 // ── CONFIG ──────────────────────────────────────────────────────
-const GAS_URL = 'https://dispatch.nhtw.workers.dev/';
+const GAS_URL = 'https://dispatch.dispatch-news.workers.dev/';
 
 const STORAGE = {
   READ:              'dispatch_read',
